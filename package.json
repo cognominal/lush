@@ -1,0 +1,13 @@
+{
+  "name": "tty-editor",
+  "version": "0.5.0",
+  "type": "module",
+  "bin": {
+    "tty-editor": "src/editor.ts"
+  },
+  "scripts": {
+    "start": "bun run src/editor.ts"
+  },
+  "dependencies": {}
+}
+
