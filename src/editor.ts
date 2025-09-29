@@ -1,15 +1,20 @@
-
-import fs from "node:fs";
+//  multi-line editor 
+//
+// it use raw state but does not disturb anything on top of the curosr
+//  A line is composed of tokens 
+// import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { spawn } from "node:child_process";
-
+// import chalk from 'chalk';
+import * as t from './types.ts'
 process.stdin.setRawMode?.(true);
 process.stdin.resume();
 process.stdin.setEncoding("utf8");
 
-const RED = "\x1b[31m";
-const RESET = "\x1b[0m";
+
+-
+
 
 /* ---------------- PATH / executables ---------------- */
 const PATH_DIRS = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
@@ -21,18 +26,101 @@ function isExecutableOnPath(cmd: string): string | null {
       fs.accessSync(full, fs.constants.X_OK);
       const st = fs.statSync(full);
       if (st.isFile()) return full;
-    } catch {}
+    } catch { }
   }
   return null;
 }
 
 /* ---------------- Editor state ---------------- */
-let lines: string[] = [""];
+let lines: t.Token[][] = []; // Content
+
+// Curent cursor position
 let lineIdx = 0;
 let colIdx = 0;
+// let currentTokenIdx = 0 // in current line
+// const stdout = process.stdout
 
 const history: string[] = [];
 let histIdx = -1; // -1: no history selection
+
+
+/* ---------- toke utils --------*/
+function getCurrentToken() {
+  const l = lines[lineIdx]
+  return l.find((t: t.Token): boolean => t.x >= colIdx)
+}
+
+// insert a string in the current token 
+
+function addStringToCurrentToken(s: string) {
+
+}
+
+// Add token to currentline
+function addToken(s: string, t: t.TokenType) {
+  // Ensure lines and current line exist
+  if (!lines[lineIdx]) {
+    lines[lineIdx] = [];
+  }
+
+  // Find the current line's tokens
+  const currentLineTokens = lines[lineIdx];
+
+  // Determine the x position (where the new token will be inserted)
+  const xPos = colIdx;
+
+  // Create the new token
+  const newToken: t.Token = {
+    type: t,
+    x: xPos,
+    y: lineIdx,
+    tokenIdx: currentLineTokens.length,
+    text: s
+  };
+
+  // Insert the new token into the line
+  currentLineTokens.splice(colIdx === 0 ? 0 : currentLineTokens.findIndex(token => token.x >= xPos), 0, newToken);
+
+  // Update token indices and x positions for tokens after the inserted token
+  for (let i = newToken.tokenIdx + 1; i < currentLineTokens.length; i++) {
+    currentLineTokens[i].tokenIdx = i;
+    currentLineTokens[i].x += s.length;
+  }
+
+  // Update cursor position
+  colIdx += s.length;
+
+  // Update following tokens' positions
+  updateFollowingTokens(s.length);
+
+  // Re-render the prompt to show the new token
+  renderPrompt();
+}
+
+
+// NrCharAdded can be negative, means delete
+function updateFollowingTokens(NrCharAdded: number) {
+  const t = getCurrentToken();
+  if (!t) return;
+
+  const currentIdx = t.tokenIdx;
+  const currentLine = t.y;
+
+  // get all tokens on the same line
+  const lineTokens = lines[currentLine ?? lineIdx];
+
+  for (const tok of lineTokens) {
+    if (tok.tokenIdx > currentIdx) {
+      tok.x += NrCharAdded;
+    }
+  }
+}
+
+
+function sanity() {
+
+}
+
 
 /* ---------------- Rendering (zsh-style: always at bottom) ---------------- */
 function highlightFirstWord(line: string): string {
@@ -42,7 +130,24 @@ function highlightFirstWord(line: string): string {
   return isExecutableOnPath(first) ? `${RED}${first}${RESET}${rest}` : line;
 }
 
+function wr(s: string) {
+  process.stdout.write(s)
+}
+
+function renderLine(i: number): string {
+  const line = lines[i];
+  if (!line) return "";
+
+  return line
+    .map((tk: t.Token) => {
+      const highlighter = t.getHighlighter(tk.type);
+      return highlighter(tk.text ?? "");
+    })
+    .join("");
+}
+
 /**
+ * The prompt block is the multiline editor
  * Repaint only the prompt block at the bottom.
  * Strategy:
  *  1) Jump to bottom (CSI 999B).
@@ -322,10 +427,10 @@ const DEFAULT_KEYMAP: Record<string, string> = {
   "enter": "acceptLine",
 };
 
-/* ---------------- Tokenizer ---------------- */
-type Token = { kind: "key"; name: string } | { kind: "text"; text: string };
-function tokenize(input: string): Token[] {
-  const out: Token[] = [];
+/* ---------------- Input event string tokenizer ---------------- */
+type EventToken = { kind: "key"; name: string } | { kind: "text"; text: string };
+function tokenize(input: string): EventToken[] {
+  const out: EventToken[] = [];
   let i = 0;
   while (i < input.length) {
     let matched = false;
@@ -351,17 +456,19 @@ function tokenize(input: string): Token[] {
 }
 
 /* ---------------- Insert text ---------------- */
+
+// need rewrite to support tokens
 function insertText(text: string) {
   if (!text) return;
   const ln = lines[lineIdx];
-  lines[lineIdx] = ln.slice(0, colIdx) + text + ln.slice(colIdx);
-  colIdx += text.length;
-  renderPrompt();
+  // lines[lineIdx] = ln.slice(0, colIdx) + text + ln.slice(colIdx);
+  // colIdx += text.length;
+  // renderPrompt();
 }
 
 /* ---------------- Input loop ---------------- */
 process.stdin.on("data", (chunk: string) => {
-  const tokens = tokenize(chunk);
+  const tokens: EventToken[] = tokenize(chunk);
   for (const t of tokens) {
     if (t.kind === "key") {
       const actionName = DEFAULT_KEYMAP[t.name];

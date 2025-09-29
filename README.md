@@ -4,6 +4,17 @@
 
 Work in progress, see [now](#now).
 See [naked strings](#naked-strings-cool-again-no-poisoned-apple) (TBD).
+We focus now on features more than configurability.
+
+Highlighting is used as primary representation. That complexifies slightly the input by the user
+but that makes
+code syntax simpler and more readable. The input will be encoded as a sequence of tokens.
+See [type.ts](src/types.ts).
+Eventually the reference readable representation of code is an augmented AST (astre) with nodes using unique id, this will
+revolutionize diff handling. The augmented AST is [acorn](https://github.com/acornjs/acorn).
+The astre will be unparsed in [unparse.ts](./src/unparse.ts)`. More info [here](./unparsing.md).
+But that's for [later](#more-long-term).
+See [secureHash.ts](src/secureHash.ts) for uuids.
 
 ## Done
 
@@ -11,10 +22,8 @@ Multi line editor. Launching commands with space separated argument.
 
 ## Working on
 
-Highlighting is used as primary representation. That complexifies slightly the input but that makes
-code syntax simpler and more readable.
-Eventually the reference representation of code is an augmented AST with node using unique id, this will
-revolutionize diff handling. But  that's for [later](#more-long-term)
+Writing code for tokenisation. Types in `src/types.ts`, (de)serialization will be in `src/history.ts`.
+`src/editor.ts` will need a complete overhaul.
 
 ## Naked strings cool again, no poisoned Apple
 
@@ -30,6 +39,12 @@ displayed in bold.
 echo  a\ b\ c          
 echo  'a b c'
 ```
+
+## space keybinding
+
+Double spacing (two space in rapid succession) moves the cursor after a symbol, then rotate between its token type.
+So the interface guesses the token type wrong you can rectify it.
+Example : keyword is preferred over naked string.
 
 ## Interpolation in naked string
 
@@ -67,8 +82,10 @@ To separate arguments, type 2 space in rapid sequence.
 
 ## Next
 
-Not necessarily in the given order
+Not necessarily in the given order.
 
+* implicit `cd`. A naked string as unique token that can be interpreted as folder path. Other tokens are ignored and not registered in history.
+See also [cd](./builtins.md#cd) and [z](./builtins#z).
 * builtins, user functions (aliases can be made user functions?)
 * An history for each cwd stored using freedesktop file hierarchy conventions. Moving up and down
 selecting commands which start with the same current string.
