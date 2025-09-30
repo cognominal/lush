@@ -4,6 +4,7 @@ import chalk from "chalk";
 // content of other tokens but that would necessitate special code
 
 // the enum values must be strings to be used in highlightMap
+// TBD : a enum does not scale, need a registry
 export enum TokenType {
   CommandName = "CommandName",
   Builtin = "Builtin",
@@ -13,6 +14,11 @@ export enum TokenType {
   Number = "Number",
   Space = "Space",
   AnyString = "AnyString",
+
+  HTMLtag = "HTMLtag",
+  TailwindClass = "TailwindClass",
+  HTMLClass = "HTMLClass",
+
   // subtypes/
   ValidPath = "ValidPath",
   InvalidPath = "InvalidPath",
@@ -24,7 +30,6 @@ export enum TokenType {
 
 export interface Token {
   type: TokenType
-  x: number  // pos in line
   tokenIdx: number
   text?: string // missing for types that have subtypes
   subTokens?: Token[]

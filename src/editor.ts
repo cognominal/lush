@@ -2,19 +2,15 @@
 //
 // it use raw state but does not disturb anything on top of the curosr
 //  A line is composed of tokens 
-// import fs from "node:fs";
+import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { spawn } from "node:child_process";
-// import chalk from 'chalk';
+import chalk from 'chalk'
 import * as t from './types.ts'
 process.stdin.setRawMode?.(true);
 process.stdin.resume();
 process.stdin.setEncoding("utf8");
-
-
--
-
 
 /* ---------------- PATH / executables ---------------- */
 const PATH_DIRS = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
@@ -32,7 +28,7 @@ function isExecutableOnPath(cmd: string): string | null {
 }
 
 /* ---------------- Editor state ---------------- */
-let lines: t.Token[][] = []; // Content
+let lines: t.TokenMultiLine = [createLineFromText('')]
 
 // Curent cursor position
 let lineIdx = 0;
@@ -44,106 +40,54 @@ const history: string[] = [];
 let histIdx = -1; // -1: no history selection
 
 
-/* ---------- toke utils --------*/
-function getCurrentToken() {
-  const l = lines[lineIdx]
-  return l.find((t: t.Token): boolean => t.x >= colIdx)
+/* ---------- token utilities --------*/
+function createLineFromText(text: string): t.TokenLine {
+  if (!text) return []
+  return [{
+    type: t.TokenType.AnyString,
+    tokenIdx: 0,
+    text
+  }]
 }
 
-// insert a string in the current token 
-
-function addStringToCurrentToken(s: string) {
-
-}
-
-// Add token to currentline
-function addToken(s: string, t: t.TokenType) {
-  // Ensure lines and current line exist
-  if (!lines[lineIdx]) {
-    lines[lineIdx] = [];
+function ensureLine(index: number): t.TokenLine {
+  if (!lines[index]) {
+    lines[index] = []
   }
-
-  // Find the current line's tokens
-  const currentLineTokens = lines[lineIdx];
-
-  // Determine the x position (where the new token will be inserted)
-  const xPos = colIdx;
-
-  // Create the new token
-  const newToken: t.Token = {
-    type: t,
-    x: xPos,
-    y: lineIdx,
-    tokenIdx: currentLineTokens.length,
-    text: s
-  };
-
-  // Insert the new token into the line
-  currentLineTokens.splice(colIdx === 0 ? 0 : currentLineTokens.findIndex(token => token.x >= xPos), 0, newToken);
-
-  // Update token indices and x positions for tokens after the inserted token
-  for (let i = newToken.tokenIdx + 1; i < currentLineTokens.length; i++) {
-    currentLineTokens[i].tokenIdx = i;
-    currentLineTokens[i].x += s.length;
-  }
-
-  // Update cursor position
-  colIdx += s.length;
-
-  // Update following tokens' positions
-  updateFollowingTokens(s.length);
-
-  // Re-render the prompt to show the new token
-  renderPrompt();
+  return lines[index]
 }
 
-
-// NrCharAdded can be negative, means delete
-function updateFollowingTokens(NrCharAdded: number) {
-  const t = getCurrentToken();
-  if (!t) return;
-
-  const currentIdx = t.tokenIdx;
-  const currentLine = t.y;
-
-  // get all tokens on the same line
-  const lineTokens = lines[currentLine ?? lineIdx];
-
-  for (const tok of lineTokens) {
-    if (tok.tokenIdx > currentIdx) {
-      tok.x += NrCharAdded;
-    }
-  }
+function setLineText(index: number, text: string) {
+  lines[index] = createLineFromText(text)
 }
 
+function lineText(line: t.TokenLine | undefined): string {
+  if (!line || line.length === 0) return ''
+  return line.map(tok => tok.text ?? '').join('')
+}
 
-function sanity() {
-
+function lineLength(line: t.TokenLine | undefined): number {
+  return lineText(line).length
 }
 
 
 /* ---------------- Rendering (zsh-style: always at bottom) ---------------- */
-function highlightFirstWord(line: string): string {
-  const m = line.match(/^(\S+)(.*)$/);
-  if (!m) return line;
-  const [_, first, rest] = m;
-  return isExecutableOnPath(first) ? `${RED}${first}${RESET}${rest}` : line;
-}
-
-function wr(s: string) {
-  process.stdout.write(s)
-}
-
-function renderLine(i: number): string {
-  const line = lines[i];
-  if (!line) return "";
-
+function renderLine(line: t.TokenLine | undefined): string {
+  if (!line || line.length === 0) return ''
   return line
     .map((tk: t.Token) => {
-      const highlighter = t.getHighlighter(tk.type);
-      return highlighter(tk.text ?? "");
+      const highlighter = t.getHighlighter(tk.type)
+      return highlighter(tk.text ?? '')
     })
-    .join("");
+    .join('')
+}
+
+function highlightFirstWord(line: t.TokenLine): string {
+  const rendered = renderLine(line)
+  const m = lineText(line).match(/^(\S+)(.*)$/)
+  if (!m) return rendered
+  const [, first, rest] = m
+  return isExecutableOnPath(first) ? `${chalk.red(first)}${rest}` : rendered
 }
 
 /**
@@ -156,12 +100,15 @@ function renderLine(i: number): string {
  *  4) Move the cursor up to the target row and set the column.
  */
 function renderPrompt() {
-  const visual = lines.map((ln, i) => {
-    const prefix = i === 0 ? "> " : "| ";
-    const body = i === 0 ? highlightFirstWord(ln) : ln;
-    return prefix + body;
-  });
-  const h = Math.max(1, visual.length);
+  ensureLine(lineIdx)
+  colIdx = Math.min(colIdx, lineLength(lines[lineIdx]))
+  const activeLines = lines.length ? lines : [createLineFromText('')]
+  const visual = activeLines.map((ln, i) => {
+    const prefix = i === 0 ? "> " : "| "
+    const body = i === 0 ? highlightFirstWord(ln) : renderLine(ln)
+    return prefix + body
+  })
+  const h = Math.max(1, visual.length)
 
   // 1) go to bottom
   process.stdout.write("\x1b[999B"); // clamp to last row
@@ -172,17 +119,18 @@ function renderPrompt() {
 
   // 3) draw each line, clearing to avoid leftovers
   for (let i = 0; i < h; i++) {
-    readline.clearLine(process.stdout, 0); // clear entire line
-    process.stdout.write(visual[i] ?? "");
-    if (i < h - 1) process.stdout.write("\n");
+    readline.clearLine(process.stdout, 0) // clear entire line
+    process.stdout.write(visual[i] ?? '')
+    if (i < h - 1) process.stdout.write('\n')
   }
 
   // 4) place cursor to row/col inside the block (relative from current bottom block)
-  const cursorRow = Math.min(Math.max(0, lineIdx), h - 1);
-  const cursorCol = 2 + Math.min(Math.max(0, colIdx), (lines[cursorRow] ?? "").length);
-  const up = (h - 1) - cursorRow;
-  if (up > 0) process.stdout.write(`\x1b[${up}A`);
-  readline.cursorTo(process.stdout, cursorCol);
+  const cursorRow = Math.min(Math.max(0, lineIdx), h - 1)
+  const cursorLine = lines[cursorRow] ?? []
+  const cursorCol = 2 + Math.min(Math.max(0, colIdx), lineLength(cursorLine))
+  const up = (h - 1) - cursorRow
+  if (up > 0) process.stdout.write(`\x1b[${up}A`)
+  readline.cursorTo(process.stdout, cursorCol)
 }
 
 /* ---------------- History ---------------- */
@@ -192,42 +140,46 @@ function loadHistory(idx: number) {
     return;
   }
   const entry = history[idx];
-  lines = entry.split("\n");
+  const parts = entry.split('\n');
+  lines = parts.map(createLineFromText);
+  if (!lines.length) {
+    lines = [createLineFromText('')]
+  }
   lineIdx = Math.min(lineIdx, lines.length - 1);
-  colIdx = Math.min(colIdx, lines[lineIdx].length);
+  colIdx = Math.min(colIdx, lineLength(lines[lineIdx]));
   histIdx = idx;
 }
 
 function currentFirstWord(): string {
-  const m = lines[0].match(/^(\S+)/);
+  const m = lineText(lines[0]).match(/^(\S+)/);
   return m ? m[1] : "";
 }
 
 /* ---------------- Movement helpers ---------------- */
 function moveLeft() {
-  if (colIdx > 0) { colIdx--; return; }
+  if (colIdx > 0) { colIdx--; return }
   if (lineIdx > 0) {
-    lineIdx--;
-    colIdx = lines[lineIdx].length;
+    lineIdx--
+    colIdx = lineLength(lines[lineIdx])
   }
 }
 function moveRight() {
-  if (colIdx < lines[lineIdx].length) { colIdx++; return; }
+  if (colIdx < lineLength(lines[lineIdx])) { colIdx++; return }
   if (lineIdx < lines.length - 1) {
-    lineIdx++;
-    colIdx = 0;
+    lineIdx++
+    colIdx = 0
   }
 }
 function previousLine() {
   if (lineIdx > 0) {
-    lineIdx--;
-    colIdx = Math.min(colIdx, lines[lineIdx].length);
+    lineIdx--
+    colIdx = Math.min(colIdx, lineLength(lines[lineIdx]))
   }
 }
 function nextLine() {
   if (lineIdx < lines.length - 1) {
-    lineIdx++;
-    colIdx = Math.min(colIdx, lines[lineIdx].length);
+    lineIdx++
+    colIdx = Math.min(colIdx, lineLength(lines[lineIdx]))
   }
 }
 function previousHistory() {
@@ -249,17 +201,18 @@ function nextHistory() {
 
 /* ---------------- Submit / execute ---------------- */
 function submit() {
-  const lastLine = lines[lineIdx];
-  if (lastLine.endsWith("\\")) {
-    lines[lineIdx] = lastLine.slice(0, -1);
-    lines.splice(lineIdx + 1, 0, "");
+  ensureLine(lineIdx)
+  const lastLineText = lineText(lines[lineIdx]);
+  if (lastLineText.endsWith('\\')) {
+    setLineText(lineIdx, lastLineText.slice(0, -1));
+    lines.splice(lineIdx + 1, 0, createLineFromText(''));
     lineIdx++;
     colIdx = 0;
     renderPrompt();
     return;
   }
 
-  const full = lines.join("\n").trimEnd();
+  const full = lines.map(lineText).join('\n').trimEnd();
 
   // Push the prompt block up by starting a new line before output
   process.stdout.write("\n");
@@ -289,7 +242,7 @@ function submit() {
 }
 
 function resetBuffer() {
-  lines = [""];
+  lines = [createLineFromText('')]
   lineIdx = 0;
   colIdx = 0;
 }
@@ -300,19 +253,20 @@ function exitEditor() {
   process.exit(130); // typical for SIGINT
 }
 function deleteOrEOF() {
-  if (lines.length === 1 && lines[0].length === 0) {
+  if (lines.length === 1 && lineLength(lines[0]) === 0) {
     process.stdout.write("\n");
     process.exit(0);
   } else {
-    const ln = lines[lineIdx];
-    if (colIdx < ln.length) {
-      lines[lineIdx] = ln.slice(0, colIdx) + ln.slice(colIdx + 1);
+    ensureLine(lineIdx)
+    const text = lineText(lines[lineIdx]);
+    if (colIdx < text.length) {
+      setLineText(lineIdx, text.slice(0, colIdx) + text.slice(colIdx + 1));
     }
     renderPrompt();
   }
 }
 function beginningOfLine() { colIdx = 0; renderPrompt(); }
-function endOfLine() { colIdx = lines[lineIdx].length; renderPrompt(); }
+function endOfLine() { colIdx = lineLength(lines[lineIdx]); renderPrompt(); }
 function backwardChar() { moveLeft(); renderPrompt(); }
 function forwardChar() { moveRight(); renderPrompt(); }
 function previousLineAction() { previousLine(); renderPrompt(); }
@@ -320,23 +274,27 @@ function nextLineAction() { nextLine(); renderPrompt(); }
 function previousHistoryAction() { previousHistory(); renderPrompt(); }
 function nextHistoryAction() { nextHistory(); renderPrompt(); }
 function deleteChar() {
-  const ln = lines[lineIdx];
-  if (colIdx < ln.length) {
-    lines[lineIdx] = ln.slice(0, colIdx) + ln.slice(colIdx + 1);
+  ensureLine(lineIdx)
+  const text = lineText(lines[lineIdx]);
+  if (colIdx < text.length) {
+    setLineText(lineIdx, text.slice(0, colIdx) + text.slice(colIdx + 1));
     renderPrompt();
   }
 }
 function backwardDeleteChar() {
-  const ln = lines[lineIdx];
+  ensureLine(lineIdx)
+  const ln = lineText(lines[lineIdx]);
   if (colIdx > 0) {
-    lines[lineIdx] = ln.slice(0, colIdx - 1) + ln.slice(colIdx);
+    setLineText(lineIdx, ln.slice(0, colIdx - 1) + ln.slice(colIdx));
     colIdx--;
   } else if (lineIdx > 0) {
-    const prevLen = lines[lineIdx - 1].length;
-    lines[lineIdx - 1] += ln;
+    const prevLineIdx = lineIdx - 1;
+    const prevText = lineText(lines[prevLineIdx]);
+    const merged = prevText + ln;
+    setLineText(prevLineIdx, merged);
     lines.splice(lineIdx, 1);
     lineIdx--;
-    colIdx = prevLen;
+    colIdx = prevText.length;
   }
   renderPrompt();
 }
@@ -347,11 +305,15 @@ function clearScreen() {
   renderPrompt();
 }
 function killLineEnd() {
-  lines[lineIdx] = lines[lineIdx].slice(0, colIdx);
+  ensureLine(lineIdx)
+  const text = lineText(lines[lineIdx]);
+  setLineText(lineIdx, text.slice(0, colIdx));
   renderPrompt();
 }
 function killLineBeginning() {
-  lines[lineIdx] = lines[lineIdx].slice(colIdx);
+  ensureLine(lineIdx)
+  const text = lineText(lines[lineIdx]);
+  setLineText(lineIdx, text.slice(colIdx));
   colIdx = 0;
   renderPrompt();
 }
@@ -456,14 +418,16 @@ function tokenize(input: string): EventToken[] {
 }
 
 /* ---------------- Insert text ---------------- */
-
-// need rewrite to support tokens
 function insertText(text: string) {
   if (!text) return;
-  const ln = lines[lineIdx];
-  // lines[lineIdx] = ln.slice(0, colIdx) + text + ln.slice(colIdx);
-  // colIdx += text.length;
-  // renderPrompt();
+  ensureLine(lineIdx)
+  const current = lineText(lines[lineIdx]);
+  const before = current.slice(0, colIdx);
+  const after = current.slice(colIdx);
+  const next = before + text + after;
+  setLineText(lineIdx, next);
+  colIdx += text.length;
+  renderPrompt();
 }
 
 /* ---------------- Input loop ---------------- */
