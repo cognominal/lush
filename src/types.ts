@@ -13,7 +13,7 @@ export enum TokenType {
   Number = "Number",
   Space = "Space",
   AnyString = "AnyString",
-  // subtypes
+  // subtypes/
   ValidPath = "ValidPath",
   InvalidPath = "InvalidPath",
   PromptChar = "MEPromptChars", // Only for multiline editing
@@ -25,13 +25,12 @@ export enum TokenType {
 export interface Token {
   type: TokenType
   x: number  // pos in line
-  y?: number // line number, necessary ?
   tokenIdx: number
   text?: string // missing for types that have subtypes
-  subtTokens?: Token[]
+  subTokens?: Token[]
 }
 
-enum OprType {
+export enum OprType {
   Binary,
   UnaryPrefix,
   unaryPostfix,
@@ -40,7 +39,7 @@ enum OprType {
 }
 
 export interface OprToken extends Token {
-  OoprTyp: OprType
+  oprType: OprType
 
 }
 export type TokenLine = Token[]
