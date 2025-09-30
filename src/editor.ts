@@ -51,6 +51,12 @@ function createLineFromText(text: string): t.TokenLine {
   }]
 }
 
+function tokenText(token: t.Token): string {
+  if (typeof token.text === 'string') return token.text
+  if (token.subTokens?.length) return token.subTokens.map(tokenText).join('')
+  return ''
+}
+
 function ensureLine(index: number): t.TokenLine {
   if (!lines[index]) {
     lines[index] = []
@@ -64,11 +70,26 @@ function setLineText(index: number, text: string) {
 
 function lineText(line: t.TokenLine | undefined): string {
   if (!line || line.length === 0) return ''
-  return line.map(tok => tok.text ?? '').join('')
+  return line.map(tokenText).join('')
 }
 
 function lineLength(line: t.TokenLine | undefined): number {
   return lineText(line).length
+}
+
+type TokenSpan = { start: number; end: number; token: t.Token }
+
+function lineTokenSpans(line: t.TokenLine | undefined): TokenSpan[] {
+  if (!line || line.length === 0) return []
+  const spans: TokenSpan[] = []
+  let offset = 0
+  for (const token of line) {
+    const text = tokenText(token)
+    const length = text.length
+    spans.push({ start: offset, end: offset + length, token })
+    offset += length
+  }
+  return spans
 }
 
 
@@ -78,7 +99,7 @@ function renderLine(line: t.TokenLine | undefined): string {
   return line
     .map((tk: t.Token) => {
       const highlighter = t.getHighlighter(tk.type)
-      return highlighter(tk.text ?? '')
+      return highlighter(tokenText(tk))
     })
     .join('')
 }
@@ -373,6 +394,105 @@ function backwardDeleteChar() {
   }
   renderPrompt();
 }
+function forwardToken() {
+  let targetLine = lineIdx;
+  let targetCol = colIdx;
+  const totalLines = lines.length;
+  while (targetLine < totalLines) {
+    const spans = lineTokenSpans(lines[targetLine]);
+    if (!spans.length) {
+      targetLine++;
+      targetCol = -1;
+      continue;
+    }
+
+    for (let i = 0; i < spans.length; i++) {
+      const span = spans[i];
+      const spanLength = span.end - span.start;
+      if (spanLength === 0) continue;
+
+      if (targetCol < span.start) {
+        lineIdx = targetLine;
+        colIdx = span.start;
+        renderPrompt();
+        return;
+      }
+
+      if (targetCol >= span.start && targetCol < span.end) {
+        for (let j = i + 1; j < spans.length; j++) {
+          const nextSpan = spans[j];
+          if (nextSpan.end > nextSpan.start) {
+            lineIdx = targetLine;
+            colIdx = nextSpan.start;
+            renderPrompt();
+            return;
+          }
+        }
+        lineIdx = targetLine;
+        colIdx = span.end;
+        renderPrompt();
+        return;
+      }
+    }
+
+    if (targetCol !== -1) {
+      targetLine++;
+      targetCol = -1;
+    }
+  }
+
+  const lastLine = Math.max(0, totalLines - 1);
+  lineIdx = lastLine;
+  colIdx = lineLength(lines[lastLine]);
+  renderPrompt();
+}
+function backwardToken() {
+  let targetLine = Math.min(lineIdx, lines.length - 1);
+  let targetCol = colIdx;
+  while (targetLine >= 0) {
+    const spans = lineTokenSpans(lines[targetLine]);
+    if (!spans.length) {
+      targetLine--;
+      targetCol = targetLine >= 0 ? lineLength(lines[targetLine]) + 1 : 0;
+      continue;
+    }
+    const lastSpan = spans[spans.length - 1];
+    const lineLen = lastSpan.end;
+    if (targetCol > lineLen) targetCol = lineLen;
+
+    for (let i = spans.length - 1; i >= 0; i--) {
+      const span = spans[i];
+      if (span.end === span.start) continue;
+
+      if (targetCol > span.start) {
+        lineIdx = targetLine;
+        colIdx = span.start;
+        renderPrompt();
+        return;
+      }
+
+      if (targetCol === span.start) {
+        for (let j = i - 1; j >= 0; j--) {
+          const prevSpan = spans[j];
+          if (prevSpan.end > prevSpan.start) {
+            lineIdx = targetLine;
+            colIdx = prevSpan.start;
+            renderPrompt();
+            return;
+          }
+        }
+        break;
+      }
+    }
+
+    targetLine--;
+    targetCol = targetLine >= 0 ? lineLength(lines[targetLine]) + 1 : 0;
+  }
+
+  lineIdx = 0;
+  colIdx = 0;
+  renderPrompt();
+}
 function acceptLine() { submit(); }
 function clearScreen() {
   // Clear screen + home, prompt will redraw at bottom next
@@ -401,12 +521,14 @@ const ACTIONS: Record<string, () => void> = {
   endOfLine,
   backwardChar,
   forwardChar,
+  forwardToken,
   previousLineAction,
   nextLineAction,
   previousHistoryAction,
   nextHistoryAction,
   deleteChar,
   backwardDeleteChar,
+  backwardToken,
   acceptLine,
   clearScreen,
   killLineEnd,
@@ -428,6 +550,10 @@ const SEQ_TO_NAME: Record<string, string> = {
   "\u000c": "ctrl-l",
   "\u0010": "ctrl-p",
   "\u000E": "ctrl-n",
+  "\u001bf": "meta-f",
+  "\u001bF": "meta-f",
+  "\u001bb": "meta-b",
+  "\u001bB": "meta-b",
   "\u001b[A": "up",
   "\u001b[B": "down",
   "\u001b[C": "right",
@@ -448,6 +574,7 @@ const DEFAULT_KEYMAP: Record<string, string> = {
   "ctrl-b": "backwardChar",
   "ctrl-e": "endOfLine",
   "ctrl-f": "forwardChar",
+  "meta-f": "forwardToken",
   "ctrl-l": "clearScreen",
   "ctrl-k": "killLineEnd",
   "ctrl-u": "killLineBeginning",
@@ -457,6 +584,7 @@ const DEFAULT_KEYMAP: Record<string, string> = {
   "down": "nextLineAction",
   "ctrl-p": "previousHistoryAction", // history on C-p/C-n
   "ctrl-n": "nextHistoryAction",
+  "meta-b": "backwardToken",
   "home": "beginningOfLine",
   "end": "endOfLine",
   "delete": "deleteChar",
