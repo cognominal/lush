@@ -7,6 +7,7 @@ import path from "node:path";
 import readline from "node:readline";
 import { spawn } from "node:child_process";
 import chalk from 'chalk'
+import { getBuiltin, type HistoryEntry, type BuiltinContext } from './builtins.ts'
 import * as t from './types.ts'
 process.stdin.setRawMode?.(true);
 process.stdin.resume();
@@ -36,7 +37,7 @@ let colIdx = 0;
 // let currentTokenIdx = 0 // in current line
 // const stdout = process.stdout
 
-const history: string[] = [];
+const history: HistoryEntry[] = [];
 let histIdx = -1; // -1: no history selection
 
 
@@ -140,7 +141,7 @@ function loadHistory(idx: number) {
     return;
   }
   const entry = history[idx];
-  const parts = entry.split('\n');
+  const parts = entry.command.split('\n');
   lines = parts.map(createLineFromText);
   if (!lines.length) {
     lines = [createLineFromText('')]
@@ -217,25 +218,99 @@ function submit() {
   // Push the prompt block up by starting a new line before output
   process.stdout.write("\n");
 
-  if (full.length > 0) {
-    history.push(full);
-    histIdx = -1;
+  if (full.length === 0) {
+    resetBuffer();
+    renderPrompt();
+    return;
   }
 
-  const first = currentFirstWord();
+  const recordHistory = (output: string) => {
+    history.push({ command: full, output });
+    histIdx = -1;
+  };
+
+  const tokens = full.split(/\s+/).filter(Boolean);
+  const first = tokens[0] ?? "";
+  const builtinHandler = getBuiltin(first);
+  if (builtinHandler) {
+    let outputBuffer = "";
+    const historySnapshot = history.slice();
+    const write = (chunk: string) => {
+      const str = chunk.toString();
+      outputBuffer += str;
+      process.stdout.write(str);
+    };
+    const context: BuiltinContext = {
+      argv: tokens.slice(1),
+      raw: full,
+      write,
+      history: historySnapshot,
+    };
+    const finalize = () => {
+      recordHistory(outputBuffer);
+      resetBuffer();
+      renderPrompt();
+    };
+    try {
+      const maybe = builtinHandler(context);
+      if (maybe && typeof (maybe as PromiseLike<void>).then === "function") {
+        Promise.resolve(maybe)
+          .catch(err => {
+            const msg = err instanceof Error ? err.message : String(err);
+            process.stderr.write(`builtin ${first} failed: ${msg}\n`);
+            outputBuffer += `builtin ${first} failed: ${msg}\n`;
+          })
+          .finally(finalize);
+      } else {
+        finalize();
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`builtin ${first} failed: ${msg}\n`);
+      outputBuffer += `builtin ${first} failed: ${msg}\n`;
+      finalize();
+    }
+    return;
+  }
+
   const exe = isExecutableOnPath(first);
 
   if (exe) {
     const args = full.replace(/\n+/g, " ").trim().split(/\s+/);
     const [cmd, ...rest] = args;
-    const child = spawn(cmd, rest, { stdio: "inherit" });
-    child.on("exit", () => {
+    let outputBuffer = "";
+    let settled = false;
+    const finalize = () => {
+      if (settled) return;
+      settled = true;
       process.stdout.write("\n");
+      recordHistory(outputBuffer);
       resetBuffer();
       renderPrompt();
+    };
+    const child = spawn(cmd, rest, { stdio: ["inherit", "pipe", "pipe"] });
+    child.stdout?.on("data", chunk => {
+      const str = chunk.toString();
+      process.stdout.write(str);
+      outputBuffer += str;
     });
+    child.stderr?.on("data", chunk => {
+      const str = chunk.toString();
+      process.stderr.write(str);
+      outputBuffer += str;
+    });
+    child.on("error", err => {
+      const msg = err instanceof Error ? err.message : String(err);
+      const line = `failed to execute ${cmd}: ${msg}\n`;
+      process.stderr.write(line);
+      outputBuffer += line;
+      finalize();
+    });
+    child.on("exit", finalize);
   } else {
-    process.stdout.write(`echo: ${full}\n`);
+    const output = `echo: ${full}\n`;
+    process.stdout.write(output);
+    recordHistory(output);
     resetBuffer();
     renderPrompt();
   }
