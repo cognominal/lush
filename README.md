@@ -122,6 +122,18 @@ except within non atomic code interpolation.
 
 Escape ends the code interpolation.
 
+## mixed editing, structural and normal
+
+Statements will be edited using structural editing.
+Expressions within such Statements will be edited using normal editing.
+We don't support structural editing yet.
+We want to have fun as soon as possible. So we will have
+a `ts` builtin that will unparse code and add it to the history.
+So we can edit it.
+We need to think what tokens and subtokens are, and their names too.
+Anyway tokens other than expression, will be readonly.
+So the `forwardToken` and `backwardToken` will skip readonly token.
+
 ## variable names
 
 They are always sigiled. But the underlying name is not sigiled.
