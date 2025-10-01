@@ -1,14 +1,21 @@
 import chalk from "chalk";
 import {
   registerBuiltin,
+  listBuiltins,
+  registerBuiltinHelp,
+  listBuiltinHelpEntries,
+  type BuiltinContext,
+} from "./builtins/registry.ts";
+import { detectHelpLevel } from "./builtins/helpFlags.ts";
+
+export {
+  registerBuiltin,
   getBuiltin,
   listBuiltins,
-  type BuiltinContext,
-  type HistoryEntry,
-  type BuiltinHandler,
+  registerBuiltinHelp,
+  getBuiltinHelp,
+  listBuiltinHelpEntries,
 } from "./builtins/registry.ts";
-
-export { registerBuiltin, getBuiltin, listBuiltins } from "./builtins/registry.ts";
 export type { BuiltinContext, BuiltinHandler, HistoryEntry } from "./builtins/registry.ts";
 
 export function escapeHtml(input: string): string {
@@ -105,12 +112,33 @@ export function chalkHtml(input: string): string {
 }
 
 function builtinListCommand(ctx: BuiltinContext) {
+  const helpLevel = detectHelpLevel(ctx);
+  if (helpLevel === "cluster") {
+    const entries = listBuiltinHelpEntries();
+    const lines = entries.map(({ name, description }) => {
+      const column = 11;
+      const padded = name.length >= column ? `${name} ` : name.padEnd(column, " ");
+      const desc = description ?? "";
+      return `${padded}${desc}`;
+    });
+    ctx.write(`${lines.join("\n")}\n`);
+    return;
+  }
+  if (helpLevel === "double") {
+    ctx.write("TBD -h -h\n");
+    return;
+  }
+  if (helpLevel === "single") {
+    ctx.write("TBD -h\n");
+    return;
+  }
   const names = listBuiltins();
   const output = names.length ? names.join("\n") : "<no builtins registered>";
   ctx.write(`${output}\n`);
 }
 
 registerBuiltin("builtins", ctx => builtinListCommand(ctx));
+registerBuiltinHelp("builtins", "TBD");
 
 function formatCommandHtml(command: string): string {
   const lines = command.split("\n");
@@ -133,6 +161,15 @@ function formatOutputHtml(output: string): string {
 }
 
 function htmlHistoryCommand(ctx: BuiltinContext) {
+  const helpLevel = detectHelpLevel(ctx);
+  if (helpLevel === "cluster" || helpLevel === "double") {
+    ctx.write("TBD -h -h\n");
+    return;
+  }
+  if (helpLevel === "single") {
+    ctx.write("TBD -h\n");
+    return;
+  }
   const history = ctx.history;
   if (!history.length) {
     ctx.write('<p><em>No history available</em></p>\n');
@@ -158,8 +195,10 @@ function htmlHistoryCommand(ctx: BuiltinContext) {
 }
 
 registerBuiltin("html", ctx => htmlHistoryCommand(ctx));
+registerBuiltinHelp("html", "TBD");
 
 // ensure builtin modules register themselves on import
 import "./builtins/cd.ts";
 import "./builtins/pushd.ts";
 import "./builtins/popd.ts";
+import "./builtins/exit.ts";

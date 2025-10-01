@@ -1,16 +1,16 @@
-import { registerBuiltin, type BuiltinContext } from "./registry.ts";
+import { registerBuiltin, registerBuiltinHelp, type BuiltinContext } from "./registry.ts";
 import { popDirectory, pushDirectory } from "./directoryStack.ts";
 import { writeCommandError } from "./pathHelpers.ts";
-import { detectHelpVariant } from "./helpFlags.ts";
+import { detectHelpLevel } from "./helpFlags.ts";
 
 registerBuiltin("popd", (ctx: BuiltinContext) => {
-  const help = detectHelpVariant(ctx, "popd");
-  if (help === "single") {
-    ctx.write("TBD -h\n");
+  const helpLevel = detectHelpLevel(ctx);
+  if (helpLevel === "cluster" || helpLevel === "double") {
+    ctx.write("TBD -h -h\n");
     return;
   }
-  if (help === "double") {
-    ctx.write("Remove the top directory from the stack and cd to it\n");
+  if (helpLevel === "single") {
+    ctx.write("TBD -h\n");
     return;
   }
 
@@ -28,3 +28,5 @@ registerBuiltin("popd", (ctx: BuiltinContext) => {
     writeCommandError(ctx, "popd", err);
   }
 });
+
+registerBuiltinHelp("popd", "TBD");

@@ -1,15 +1,15 @@
-import { registerBuiltin, type BuiltinContext } from "./registry.ts";
-import { detectHelpVariant } from "./helpFlags.ts";
+import { registerBuiltin, registerBuiltinHelp, type BuiltinContext } from "./registry.ts";
+import { detectHelpLevel } from "./helpFlags.ts";
 import { resolveDirectory, writeDirectoryError } from "./pathHelpers.ts";
 
 registerBuiltin("cd", (ctx: BuiltinContext) => {
-  const help = detectHelpVariant(ctx, "cd");
-  if (help === "single") {
-    ctx.write("TBD -h\n");
+  const helpLevel = detectHelpLevel(ctx);
+  if (helpLevel === "cluster" || helpLevel === "double") {
+    ctx.write("TBD -h -h\n");
     return;
   }
-  if (help === "double") {
-    ctx.write("Go to the specified directory\n");
+  if (helpLevel === "single") {
+    ctx.write("TBD -h\n");
     return;
   }
 
@@ -26,3 +26,5 @@ registerBuiltin("cd", (ctx: BuiltinContext) => {
     writeDirectoryError(ctx, err);
   }
 });
+
+registerBuiltinHelp("cd", "TBD");

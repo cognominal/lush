@@ -40,6 +40,119 @@ describe("chalkHtml", () => {
   });
 });
 
+describe("builtins builtin", () => {
+  const builtinCommand = getBuiltin("builtins");
+  if (!builtinCommand) throw new Error("builtins builtin not registered");
+
+  const invoke = (argv: string[], raw: string) => {
+    const chunks: string[] = [];
+    builtinCommand({
+      argv,
+      raw,
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    return chunks.join("");
+  };
+
+  it("lists builtins alphabetically by default", () => {
+    const output = invoke([], "builtins");
+    expect(output).toBe("builtins\ncd\nexit\nhtml\npopd\npushd\n");
+  });
+
+  it("prints placeholder help for -h", () => {
+    const output = invoke(["-h"], "builtins -h");
+    expect(output).toBe("TBD -h\n");
+  });
+
+  it("detects repeated -h flags", () => {
+    const output = invoke(["-h", "-h"], "builtins -h -h");
+    expect(output).toBe("TBD -h -h\n");
+  });
+
+  it("shows descriptions for -hh", () => {
+    const output = invoke(["-hh"], "builtins -hh");
+    expect(output).toBe([
+      "builtins   TBD",
+      "cd         TBD",
+      "exit       exit Lush shell",
+      "html       TBD",
+      "popd       TBD",
+      "pushd      TBD",
+      "",
+    ].join("\n"));
+  });
+});
+
+describe("exit builtin", () => {
+  const exitBuiltin = getBuiltin("exit");
+  if (!exitBuiltin) throw new Error("exit builtin not registered");
+
+  const exitCalls: Array<number | undefined> = [];
+  const exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+    exitCalls.push(code);
+    return undefined as never;
+  }) as unknown as never);
+
+  afterEach(() => {
+    exitSpy.mockClear();
+    exitCalls.length = 0;
+  });
+
+  afterAll(() => {
+    exitSpy.mockRestore();
+  });
+
+  it("prints placeholder help for -h", () => {
+    const chunks: string[] = [];
+    exitBuiltin({
+      argv: ["-h"],
+      raw: "exit -h",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("TBD -h\n");
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  it("prints placeholder help for repeated -h", () => {
+    const chunks: string[] = [];
+    exitBuiltin({
+      argv: ["-h", "-h"],
+      raw: "exit -h -h",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("TBD -h -h\n");
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  it("describes exit for -hh", () => {
+    const chunks: string[] = [];
+    exitBuiltin({
+      argv: ["-hh"],
+      raw: "exit -hh",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("exit Lush shell\n");
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  it("exits the process when invoked without flags", () => {
+    const chunks: string[] = [];
+    exitBuiltin({
+      argv: [],
+      raw: "exit",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks).toEqual([]);
+    expect(exitSpy).toHaveBeenCalledTimes(1);
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+});
+
 describe("cd builtin", () => {
   const cdBuiltin = getBuiltin("cd");
   if (!cdBuiltin) throw new Error("cd builtin not registered");
@@ -62,7 +175,7 @@ describe("cd builtin", () => {
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   });
 
-  it("prints help for -h", () => {
+  it("prints placeholder help for -h", () => {
     const chunks: string[] = [];
     cdBuiltin({
       argv: ["-h"],
@@ -74,7 +187,7 @@ describe("cd builtin", () => {
     expect(process.cwd()).toBe(startCwd);
   });
 
-  it("prints extended help for -h -h", () => {
+  it("detects repeated -h", () => {
     const chunks: string[] = [];
     cdBuiltin({
       argv: ["-h", "-h"],
@@ -82,7 +195,19 @@ describe("cd builtin", () => {
       write: chunk => { chunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("Go to the specified directory\n");
+    expect(chunks.join("")).toBe("TBD -h -h\n");
+    expect(process.cwd()).toBe(startCwd);
+  });
+
+  it("treats -hh as double help", () => {
+    const chunks: string[] = [];
+    cdBuiltin({
+      argv: ["-hh"],
+      raw: "cd -hh",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("TBD -h -h\n");
     expect(process.cwd()).toBe(startCwd);
   });
 
@@ -110,30 +235,6 @@ describe("cd builtin", () => {
     });
     expect(process.cwd()).toBe(homeDir);
     expect(chunks.join("")).toBe(`${homeDir}\n`);
-  });
-
-  it("prints placeholder help for a single -h", () => {
-    const chunks: string[] = [];
-    cdBuiltin({
-      argv: ["-h"],
-      raw: "cd -h",
-      write: chunk => { chunks.push(chunk); },
-      history: [],
-    });
-    expect(process.cwd()).toBe(startCwd);
-    expect(chunks.join("")).toBe("TBD -h\n");
-  });
-
-  it("describes cd when -hh is provided", () => {
-    const chunks: string[] = [];
-    cdBuiltin({
-      argv: ["-hh"],
-      raw: "cd -hh",
-      write: chunk => { chunks.push(chunk); },
-      history: [],
-    });
-    expect(process.cwd()).toBe(startCwd);
-    expect(chunks.join("")).toBe("Go to the specified directory\n");
   });
 
   it("errors when too many arguments are supplied", () => {
@@ -169,30 +270,46 @@ describe("pushd/popd builtins", () => {
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   });
 
-  it("prints help for -h", () => {
-    const chunks: string[] = [];
+  it("prints placeholder help for pushd -h and popd -h", () => {
+    const pushChunks: string[] = [];
     pushdBuiltin({
       argv: ["-h"],
       raw: "pushd -h",
-      write: chunk => { chunks.push(chunk); },
+      write: chunk => { pushChunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("TBD -h\n");
+    expect(pushChunks.join("")).toBe("TBD -h\n");
     expect(process.cwd()).toBe(startCwd);
-    expect(getDirectoryStack()).toEqual([]);
+
+    const popChunks: string[] = [];
+    popdBuiltin({
+      argv: ["-h"],
+      raw: "popd -h",
+      write: chunk => { popChunks.push(chunk); },
+      history: [],
+    });
+    expect(popChunks.join("")).toBe("TBD -h\n");
+    expect(process.cwd()).toBe(startCwd);
   });
 
-  it("prints extended help for -h -h", () => {
-    const chunks: string[] = [];
+  it("detects repeated help flags", () => {
+    const pushChunks: string[] = [];
     pushdBuiltin({
       argv: ["-h", "-h"],
       raw: "pushd -h -h",
-      write: chunk => { chunks.push(chunk); },
+      write: chunk => { pushChunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("Switch to directory and push it on the stack\n");
-    expect(process.cwd()).toBe(startCwd);
-    expect(getDirectoryStack()).toEqual([]);
+    expect(pushChunks.join("")).toBe("TBD -h -h\n");
+
+    const popChunks: string[] = [];
+    popdBuiltin({
+      argv: ["-hh"],
+      raw: "popd -hh",
+      write: chunk => { popChunks.push(chunk); },
+      history: [],
+    });
+    expect(popChunks.join("")).toBe("TBD -h -h\n");
   });
 
   it("pushes current directory, changes to target, and records stack", () => {
@@ -207,32 +324,6 @@ describe("pushd/popd builtins", () => {
     expect(process.cwd()).toBe(target);
     expect(chunks.join("")).toBe(`${target}\n`);
     expect(getDirectoryStack()).toEqual([startCwd]);
-  });
-
-  it("prints placeholder help for -h", () => {
-    const chunks: string[] = [];
-    pushdBuiltin({
-      argv: ["-h"],
-      raw: "pushd -h",
-      write: chunk => { chunks.push(chunk); },
-      history: [],
-    });
-    expect(process.cwd()).toBe(startCwd);
-    expect(getDirectoryStack()).toEqual([]);
-    expect(chunks.join("")).toBe("TBD -h\n");
-  });
-
-  it("describes pushd when -hh is provided", () => {
-    const chunks: string[] = [];
-    pushdBuiltin({
-      argv: ["-hh"],
-      raw: "pushd -hh",
-      write: chunk => { chunks.push(chunk); },
-      history: [],
-    });
-    expect(process.cwd()).toBe(startCwd);
-    expect(getDirectoryStack()).toEqual([]);
-    expect(chunks.join("")).toBe("Switch to directory and push it on the stack\n");
   });
 
   it("returns to previous directory with popd", () => {
@@ -255,28 +346,6 @@ describe("pushd/popd builtins", () => {
     expect(getDirectoryStack()).toEqual([]);
   });
 
-  it("prints help for -h", () => {
-    const chunks: string[] = [];
-    popdBuiltin({
-      argv: ["-h"],
-      raw: "popd -h",
-      write: chunk => { chunks.push(chunk); },
-      history: [],
-    });
-    expect(chunks.join("")).toBe("TBD -h\n");
-  });
-
-  it("prints extended help for -h -h", () => {
-    const chunks: string[] = [];
-    popdBuiltin({
-      argv: ["-h", "-h"],
-      raw: "popd -h -h",
-      write: chunk => { chunks.push(chunk); },
-      history: [],
-    });
-    expect(chunks.join("")).toBe("Remove the top directory from the stack and cd to it\n");
-  });
-
   it("warns when popd stack is empty", () => {
     const chunks: string[] = [];
     popdBuiltin({
@@ -286,30 +355,6 @@ describe("pushd/popd builtins", () => {
       history: [],
     });
     expect(chunks.join("")).toBe("popd: directory stack empty\n");
-  });
-
-  it("prints placeholder help for popd -h", () => {
-    clearDirectoryStack();
-    const chunks: string[] = [];
-    popdBuiltin({
-      argv: ["-h"],
-      raw: "popd -h",
-      write: chunk => { chunks.push(chunk); },
-      history: [],
-    });
-    expect(chunks.join("")).toBe("TBD -h\n");
-  });
-
-  it("describes popd for -hh", () => {
-    clearDirectoryStack();
-    const chunks: string[] = [];
-    popdBuiltin({
-      argv: ["-hh"],
-      raw: "popd -hh",
-      write: chunk => { chunks.push(chunk); },
-      history: [],
-    });
-    expect(chunks.join("")).toBe("Remove the top directory from the stack and cd to it\n");
   });
 });
 
@@ -327,6 +372,16 @@ describe("html builtin", () => {
     });
     return chunks.join("");
   };
+
+  it("prints placeholder help for -h", async () => {
+    const output = await invokeHtml([], ["-h"]);
+    expect(output).toBe("TBD -h\n");
+  });
+
+  it("prints placeholder help for -hh", async () => {
+    const output = await invokeHtml([], ["-hh"]);
+    expect(output).toBe("TBD -h -h\n");
+  });
 
   it("renders the latest command and output as HTML", async () => {
     const history: HistoryEntry[] = [

@@ -1,27 +1,38 @@
 import type { BuiltinContext } from "./registry.ts";
 
-export type HelpVariant = "none" | "single" | "double";
+export type HelpLevel = "none" | "single" | "double" | "cluster";
 
-export function detectHelpVariant(ctx: BuiltinContext, command: string): HelpVariant {
-  const raw = ctx.raw.trim();
-  if (!raw.startsWith(command)) return "none";
-  const rest = raw.slice(command.length).trim();
-  if (!rest) return "none";
-  const tokens = rest.split(/\s+/).filter(Boolean);
+function rawHasSeparatedDouble(raw: string): boolean {
+  const trimmed = raw.trim();
+  if (!trimmed) return false;
+  const pattern = /(^|\s)-h\s+-h(\s|$)/;
+  return pattern.test(trimmed);
+}
 
-  let count = 0;
-  for (const token of tokens) {
-    if (token === "-h") {
-      count += 1;
+export function detectHelpLevel(ctx: BuiltinContext): HelpLevel {
+  let singleCount = 0;
+  let hasCluster = false;
+
+  for (const arg of ctx.argv) {
+    if (arg === "-h") {
+      singleCount++;
       continue;
     }
-    if (token === "-hh") {
-      count += 2;
-      continue;
+    if (arg === "-hh") {
+      hasCluster = true;
     }
   }
 
-  if (count >= 2) return "double";
-  if (count === 1) return "single";
+  if (hasCluster) return "cluster";
+  if (singleCount >= 2 || rawHasSeparatedDouble(ctx.raw)) return "double";
+  if (singleCount === 1) return "single";
   return "none";
+}
+
+export function isSingleHelp(level: HelpLevel): boolean {
+  return level === "single";
+}
+
+export function isDoubleHelp(level: HelpLevel): boolean {
+  return level === "double" || level === "cluster";
 }

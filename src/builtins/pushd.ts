@@ -1,16 +1,16 @@
-import { registerBuiltin, type BuiltinContext } from "./registry.ts";
+import { registerBuiltin, registerBuiltinHelp, type BuiltinContext } from "./registry.ts";
 import { pushDirectory, popDirectory } from "./directoryStack.ts";
 import { resolveDirectory, writeDirectoryError, writeCommandError } from "./pathHelpers.ts";
-import { detectHelpVariant } from "./helpFlags.ts";
+import { detectHelpLevel } from "./helpFlags.ts";
 
 registerBuiltin("pushd", (ctx: BuiltinContext) => {
-  const help = detectHelpVariant(ctx, "pushd");
-  if (help === "single") {
-    ctx.write("TBD -h\n");
+  const helpLevel = detectHelpLevel(ctx);
+  if (helpLevel === "cluster" || helpLevel === "double") {
+    ctx.write("TBD -h -h\n");
     return;
   }
-  if (help === "double") {
-    ctx.write("Switch to directory and push it on the stack\n");
+  if (helpLevel === "single") {
+    ctx.write("TBD -h\n");
     return;
   }
 
@@ -35,3 +35,5 @@ registerBuiltin("pushd", (ctx: BuiltinContext) => {
     writeDirectoryError(ctx, err);
   }
 });
+
+registerBuiltinHelp("pushd", "TBD");
