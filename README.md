@@ -38,38 +38,55 @@ See [secureHash.ts](src/secureHash.ts) for uuids.
 
 ## Planned/Done
 
-Currently, we do lush as command line editor. We want to know how far we can go without structural editing.
-For structural editing, we should thing of an API similar in lua (for nvim) and ts (for the terminal)
+Currently, we do lush as a command line editor. We want to know how far we can go without structural editing.
+For structural editing, we should thing of an API similar in lua (for nvim) and ts (for the terminal).
+Some builtins have for sole purpose to help development. `ts`, `lush` and `lush` will be passed path to
+files in [sample-js](./sample-js) that are simplistic files. We focus on features that help top bootstrap
+the rest. But, hey, short term usefulness helps too.
 
+- Programming. Not necessarily linked to a feature but needed to run/grow the system
+  - [ ] `Token` should be a registry not an enum. Rename to ast node
+  - [ ] Some sort of status field below the multi line editor would help
+  - [ ] check display of multilevel tokens
 - Multi line editor.
   - [x] Core logic
-  - [ ] Handling spaces. Fast double space should exit current token and move next token which is a space one, creating it if missing
-  - [ ] Type logic. Once in a space, fast double space, should rotate between the logical types for the previous tokem
+  - [ ] correct handling of tokens when launching builtins and commands, meaning space token separates arguments
+  - [ ] On missing command or builtin don't echo anymore
+  - [ ] On submit on empty command, possibly multi line, emit a bell, don't add to history
+  - [ ] Handling spaces. Fast double space should exit current token and move next token which one of Space type, creating it if missing
+  - [ ] Type logic. Once in a space, fast double space, should rotate between the logical types for the previous token
   - [ ] Backslash for metachars specially highlighted as one char
   - [ ] Same for globbing
+  - [ ] Command/builtin completion
 - Builtins
   - [x] Core logic
   - [x] Builtin command `builtins` that list the builtins
+  - [ ] Minimal support of builtins cd, pushd,  popd (dirs TBD). The 3 latter should print the resulting stack
   - [ ] Use minimist
-  - [ ] `-hh` should output one liner help for builtins except `builtins`
-  - [ ] With builtins, it calls all the other builtins with `--h`
+  - [x] `-hh` should output one liner help for builtins except `builtins`
+  - [ ] With builtins `builtin`, it calls all the other builtins with `-h`
+  - [ ] `ts` takes as argument a path to a js/ts file and use json stringify to display it
+  - [ ] `lush`  will do the same but will display it in lush tokenized format
+  - [ ] `lushh`` will do the same and will add it to history
 - lush : Features specific to lush  
-  - [ ] Hooking to acorn to do more than launching commands and executing builtins.
-  - [ ] Typed pipes a la nushell
-  - [ ] A builtin `ts` that output the unparsing of ts/js/svelte file
-  - syntax and semantic (depends on Acorn hooking)
-  - [ ] Expressions with less spacing to identify subexpressions  a + b  *c  means (a+b)*c
-  - [ ] Variables, sigil or sigiless
-  - [ ] Optional autovivifying  (explicit in programs, default in command line).
+- [ ] Hooking to acorn to do more than launching commands and executing builtins.
+- [ ] Typed pipes a la nushell
+- [ ] A builtin `ts` that output the unparsing of ts/js/svelte file
+- syntax and semantic (depends on Acorn hooking)
+- [ ] Expressions with less spacing to identify subexpressions  a + b  *c  means (a+b)*c
+- [ ] Variables, sigil or sigiless
+- [ ] Optional autovivifying  (explicit in programs, default in command line).
 
 - classic shell features
+  - [ ] Implicit cd
+  - [ ] (shortened) path in prompt
   - [ ] Aliases ??
   - [ ] Globbing
   - [ ] Simple redirections
   - [ ] Job control
   - History
-    - [ ] ^P, ^N move in history
-    - [ ] But should display with same initial tokens
+    - [x] ^P, ^N move in history
+    - [ ] But should display only entries with same initial tokens
     - [ ] saving history, per cwd
     - [ ] History saved as Astre
 
