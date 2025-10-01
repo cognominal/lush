@@ -1,32 +1,15 @@
 import chalk from "chalk";
+import {
+  registerBuiltin,
+  getBuiltin,
+  listBuiltins,
+  type BuiltinContext,
+  type HistoryEntry,
+  type BuiltinHandler,
+} from "./builtins/registry.ts";
 
-export interface HistoryEntry {
-  command: string;
-  output: string;
-}
-
-export interface BuiltinContext {
-  argv: string[];
-  raw: string;
-  write: (chunk: string) => void;
-  history: readonly HistoryEntry[];
-}
-
-export type BuiltinHandler = (context: BuiltinContext) => void | Promise<void>;
-
-const registry: Map<string, BuiltinHandler> = new Map();
-
-export function registerBuiltin(name: string, handler: BuiltinHandler) {
-  registry.set(name, handler);
-}
-
-export function getBuiltin(name: string): BuiltinHandler | undefined {
-  return registry.get(name);
-}
-
-export function listBuiltins(): string[] {
-  return Array.from(registry.keys()).sort();
-}
+export { registerBuiltin, getBuiltin, listBuiltins } from "./builtins/registry.ts";
+export type { BuiltinContext, BuiltinHandler, HistoryEntry } from "./builtins/registry.ts";
 
 export function escapeHtml(input: string): string {
   return input
@@ -175,3 +158,8 @@ function htmlHistoryCommand(ctx: BuiltinContext) {
 }
 
 registerBuiltin("html", ctx => htmlHistoryCommand(ctx));
+
+// ensure builtin modules register themselves on import
+import "./builtins/cd.ts";
+import "./builtins/pushd.ts";
+import "./builtins/popd.ts";
