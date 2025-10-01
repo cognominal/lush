@@ -62,6 +62,30 @@ describe("cd builtin", () => {
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   });
 
+  it("prints help for -h", () => {
+    const chunks: string[] = [];
+    cdBuiltin({
+      argv: ["-h"],
+      raw: "cd -h",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("TBD -h\n");
+    expect(process.cwd()).toBe(startCwd);
+  });
+
+  it("prints extended help for -h -h", () => {
+    const chunks: string[] = [];
+    cdBuiltin({
+      argv: ["-h", "-h"],
+      raw: "cd -h -h",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("TBD -h -h\n");
+    expect(process.cwd()).toBe(startCwd);
+  });
+
   it("changes to provided directory and prints its path", () => {
     const target = fs.mkdtempSync(path.join(tmpRoot, "dir-"));
     const chunks: string[] = [];
@@ -121,6 +145,32 @@ describe("pushd/popd builtins", () => {
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   });
 
+  it("prints help for -h", () => {
+    const chunks: string[] = [];
+    pushdBuiltin({
+      argv: ["-h"],
+      raw: "pushd -h",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("TBD -h\n");
+    expect(process.cwd()).toBe(startCwd);
+    expect(getDirectoryStack()).toEqual([]);
+  });
+
+  it("prints extended help for -h -h", () => {
+    const chunks: string[] = [];
+    pushdBuiltin({
+      argv: ["-h", "-h"],
+      raw: "pushd -h -h",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("TBD -h -h\n");
+    expect(process.cwd()).toBe(startCwd);
+    expect(getDirectoryStack()).toEqual([]);
+  });
+
   it("pushes current directory, changes to target, and records stack", () => {
     const target = fs.mkdtempSync(path.join(tmpRoot, "dir-"));
     const chunks: string[] = [];
@@ -153,6 +203,28 @@ describe("pushd/popd builtins", () => {
     expect(process.cwd()).toBe(startCwd);
     expect(chunks.join("")).toBe(`${startCwd}\n`);
     expect(getDirectoryStack()).toEqual([]);
+  });
+
+  it("prints help for -h", () => {
+    const chunks: string[] = [];
+    popdBuiltin({
+      argv: ["-h"],
+      raw: "popd -h",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("TBD -h\n");
+  });
+
+  it("prints extended help for -h -h", () => {
+    const chunks: string[] = [];
+    popdBuiltin({
+      argv: ["-h", "-h"],
+      raw: "popd -h -h",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("TBD -h -h\n");
   });
 
   it("warns when popd stack is empty", () => {

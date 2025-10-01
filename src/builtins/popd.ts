@@ -1,8 +1,19 @@
 import { registerBuiltin, type BuiltinContext } from "./registry.ts";
 import { popDirectory, pushDirectory } from "./directoryStack.ts";
 import { writeCommandError } from "./pathHelpers.ts";
+import { detectHelpVariant } from "./helpFlags.ts";
 
 registerBuiltin("popd", (ctx: BuiltinContext) => {
+  const help = detectHelpVariant(ctx, "popd");
+  if (help === "single") {
+    ctx.write("TBD -h\n");
+    return;
+  }
+  if (help === "double") {
+    ctx.write("TBD -h -h\n");
+    return;
+  }
+
   const next = popDirectory();
   if (!next) {
     ctx.write("popd: directory stack empty\n");

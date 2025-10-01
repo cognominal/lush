@@ -1,8 +1,19 @@
 import { registerBuiltin, type BuiltinContext } from "./registry.ts";
 import { pushDirectory, popDirectory } from "./directoryStack.ts";
 import { resolveDirectory, writeDirectoryError, writeCommandError } from "./pathHelpers.ts";
+import { detectHelpVariant } from "./helpFlags.ts";
 
 registerBuiltin("pushd", (ctx: BuiltinContext) => {
+  const help = detectHelpVariant(ctx, "pushd");
+  if (help === "single") {
+    ctx.write("TBD -h\n");
+    return;
+  }
+  if (help === "double") {
+    ctx.write("TBD -h -h\n");
+    return;
+  }
+
   if (ctx.argv.length === 0) {
     ctx.write("pushd: missing directory\n");
     return;
