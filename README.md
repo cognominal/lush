@@ -4,7 +4,8 @@
 
 No release yet.
 
-```bun run start
+```bash
+bun run start
 ```
 
 ## Lush is special
@@ -36,9 +37,9 @@ For sturctual editing, we should thing of an API similar in lua (for nvim) and t
 - Multi line editor.
   - [x] Core logic
   - [ ] Handling spaces. Fast double space should exit current token and move next token which is a space one, creating it if missing
-  - [ ] Sackslash for metachars specially highlighted as one char
-  - [ ] Same for globbing
   - [ ] Type logic. Once in a space, fast double space, should rotate between the logical types for the previous tokem
+  - [ ] Backslash for metachars specially highlighted as one char
+  - [ ] Same for globbing
 [-] Builtins
   - [x] Core logic
   - [x] Builtin command `builtins` that list the builtins
@@ -47,23 +48,36 @@ For sturctual editing, we should thing of an API similar in lua (for nvim) and t
   - [ ] With builtins, it calls all the other builtins with `--h`
 - lush : Features specific to lush  
   - [ ] Hooking to acorn to do more than launching commands and executing builtins.
-  - [ ] Expressions with less spacing to identify subexpressions  a + b  *c  means (a+b)*c
   - [ ] Typed pipes a la nushell
   - [ ] A builtin `ts` that output the unparsing of ts/js/svelte file
+  - syntax and semantic (depends on Acorn hooking)
+  - [ ] Expressions with less spacing to identify subexpressions  a + b  *c  means (a+b)*c
+  - [ ] Variables, sigil or sigiless
+  - [ ] Optional autovivifying  (explicit in programs, default in command line).
+
 - classic shell features
   - [ ] Aliases ??
   - [ ] Globbing
   - [ ] Simple redirections
   - [ ] Job control
   - History
-  - [ ] ^P, ^N move in history
-  - [ ] but should display with same initial tokens
-  - [ ] saving history, per cwd
-  - [ ]
+    - [ ] ^P, ^N move in history
+    - [ ] But should display with same initial tokens
+    - [ ] saving history, per cwd
+    - [ ] History saved as Astre
+
+- Astre (Ast REference Representation) is what it says, and what we interact with is an Astre unparing
+  - [ ] build on Acorn a la svelte
+  - [ ] Node UUID
+  - [ ] a map that binds symbol UUID to external names (general, localized, personal)
+  - [ ] grit, a diff system based on Astre, not on lines
+- Leste, a better svelte representation, adapted from code of [svelte.dev](https://github.com/sveltejs/svelte.dev)
+  - [ ] Using xtermjs in svelte to make shell as notebooks
 - Various
-- [ ] stackblitz
-- [ ]
-- Nvim. We now run in a terminal. We want to program lush in nvim
+  - [ ] Stackblitz. Run a shell server side ?
+  - [ ] Busybox. Many builtinsi for free
+- [ ] Nvim. We now run in a terminal. We want to program lush in nvim
+- [ ] Doc. I have tons of thoughts in various .mds. This tick list makes little sense without it. Make some of them readable for an newcomer. But a demo is even better
 
 ## Working on
 
@@ -126,6 +140,8 @@ To separate arguments, type 2 space in rapid sequence.
 
 ## Next
 
+TBD retrofit into tick list
+
 Not necessarily in the given order.
 
 - implicit `cd`. A naked string as unique token that can be interpreted as folder path. Other tokens are ignored and not registered in history.
@@ -140,30 +156,14 @@ a special background.
 
 ## Thinking mid term
 
+TBD retrofit into tick list
+
 Eventually I need to do the shell program edition in nvim. Later in codemirror/monaco.
 But I want to deffer that. Can I do menu driven structural editing using terminal-kit.
 Should I add my multi line input field to it?
 Can I use/create an adapter and use nvim, with what plugin, as a backend.
 Add raku syntax in the mix.
-Optional autovivifying  (explicit in programs, default in command line).
 
 - to enable it. - to disable it.    @a+<toto>
 Raku syntax. Will be simplified with highlighting as primary notation.
 @*PATH
-
-## More long term
-
-Using xtermjs in svelte to make shell as notebooks
-
-## LSP should enter the dance
-
-Storing history as a yaml dump of an augmented acorn AST tree ?
-Augmented AST tree is what does svelte.
-Use it to do LSP,  what is the model there ?
-The augmented tree should become the reference representation.
-
-## How
-
-I have to use chatgpt to generate the code. It required many iterations. It will not scale.
-Probably next month will be spent learning to use some AI from a terminal or nvim.
-I have tried crush and did not grok it (yet?)
