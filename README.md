@@ -8,6 +8,13 @@ No release yet.
 bun run start
 ```
 
+### Via Docker
+
+```bash
+docker build -t lush .
+docker run -it --rm lush
+```
+
 ## Lush is special
 
 Work in progress, see [now](#now).
@@ -74,6 +81,7 @@ For structural editing, we should thing of an API similar in lua (for nvim) and 
 - Leste, a better svelte representation, adapted from code of [svelte.dev](https://github.com/sveltejs/svelte.dev)
   - [ ] Using xtermjs in svelte to make shell as notebooks
 - Various
+  - [x] Docker image
   - [ ] Stackblitz. Run a shell server side ?
   - [ ] Busybox. Many builtinsi for free
 - [ ] Nvim. We now run in a terminal. We want to program lush in nvim

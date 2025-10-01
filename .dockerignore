@@ -1,0 +1,6 @@
+node_modules
+bun.lockb
+coverage
+.git
+.vscode
+.DS_Store
