@@ -57,7 +57,7 @@ describe("builtins builtin", () => {
 
   it("lists builtins alphabetically by default", () => {
     const output = invoke([], "builtins");
-    expect(output).toBe("builtins\ncd\nexit\nhtml\npopd\npushd\n");
+    expect(output).toBe("builtins\ncd\nexit\nhtml\npopd\npushd\nts\n");
   });
 
   it("prints placeholder help for -h", () => {
@@ -79,6 +79,7 @@ describe("builtins builtin", () => {
       "html       TBD",
       "popd       TBD",
       "pushd      TBD",
+      "ts         Parse JS/TS/Svelte file",
       "",
     ].join("\n"));
   });
@@ -150,6 +151,76 @@ describe("exit builtin", () => {
     expect(chunks).toEqual([]);
     expect(exitSpy).toHaveBeenCalledTimes(1);
     expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+});
+
+describe("ts builtin", () => {
+  const tsBuiltin = getBuiltin("ts");
+  if (!tsBuiltin) throw new Error("ts builtin not registered");
+
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "lush-ts-"));
+
+  afterAll(() => {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  const invoke = async (argv: string[], raw: string) => {
+    const chunks: string[] = [];
+    await tsBuiltin({
+      argv,
+      raw,
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    return chunks.join("");
+  };
+
+  it("prints placeholder help for -h", async () => {
+    const output = await invoke(["-h"], "ts -h");
+    expect(output).toBe("TBD -h\n");
+  });
+
+  it("describes builtin for -hh", async () => {
+    const output = await invoke(["-hh"], "ts -hh");
+    expect(output).toBe("Parse JS/TS/Svelte file\n");
+  });
+
+  it("parses a JavaScript file", async () => {
+    const filePath = path.join(tmpRoot, "sample.js");
+    fs.writeFileSync(filePath, "const answer = 42;\n");
+    const output = await invoke([filePath], `ts ${filePath}`);
+    const parsed = JSON.parse(output);
+    expect(parsed.type).toBe("Program");
+    expect(parsed.body[0].type).toBe("VariableDeclaration");
+  });
+
+  it("parses a TypeScript file", async () => {
+    const filePath = path.join(tmpRoot, "sample.ts");
+    fs.writeFileSync(filePath, "const answer: number = 42;\n");
+    const output = await invoke([filePath], `ts ${filePath}`);
+    const parsed = JSON.parse(output);
+    expect(parsed.type).toBe("Program");
+    expect(parsed.body[0].type).toBe("VariableDeclaration");
+  });
+
+  it("errors on unsupported extension", async () => {
+    const badPath = path.join(tmpRoot, "sample.txt");
+    fs.writeFileSync(badPath, "text");
+    const output = await invoke([badPath], `ts ${badPath}`);
+    expect(output).toContain("ts: unsupported file type");
+  });
+
+  it("parses a Svelte file", async () => {
+    const filePath = path.join(tmpRoot, "sample.svelte");
+    fs.writeFileSync(
+      filePath,
+      `<script>export let name = "world";</script>\n<h1>Hello {name}</h1>\n`
+    );
+    const output = await invoke([filePath], `ts ${filePath}`);
+    const parsed = JSON.parse(output);
+    expect(parsed.html.type).toBe("Fragment");
+    const element = parsed.html.children.find((child: { type?: string }) => child?.type === "Element");
+    expect(element?.name).toBe("h1");
   });
 });
 

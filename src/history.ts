@@ -12,6 +12,7 @@
 // TBD: we probably assume token not containing newline, which will be not true
 import { readFileSync } from 'node:fs';
 import * as t from './types.ts'
+
 let es = process.env.XDG_STATE_HOME
 let default_state_dir = process.env.HOME + '/.local/state'
 let xdg_state_home = es !== undefined ? es : default_state_dir

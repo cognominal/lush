@@ -8,7 +8,7 @@
 | **Ctrl-B**    | `backwardChar`          | Move cursor left one character                    |
 | **Ctrl-F**    | `forwardChar`           | Move cursor right one character                   |
 | **Ctrl-K**    | `killLineEnd`           | Kill (delete) from cursor to end of line          |
-| **Ctrl-U**    | `killLineBeginning`     | Kill (delete) from start of line to cursor        |
+| **Ctrl-U**    | `killLineBeginning`     | Kill (delete) from start of line to cursor        |/Users/cog/.config/zellij/config.kdl
 | **Ctrl-L**    | `clearScreen`           | Clear screen and redraw prompt                    |
 | **Left**      | `backwardChar`          | Move cursor left                                  |
 | **Right**     | `forwardChar`           | Move cursor right                                 |
@@ -20,4 +20,5 @@
 | **End**       | `endOfLine`             | Move cursor to end of line                        |
 | **Delete**    | `deleteChar`            | Delete char under cursor                          |
 | **Backspace** | `backwardDeleteChar`    | Delete char before cursor (merge lines if needed) |
-| **Enter**     | `acceptLine`            | Submit line(s), execute command or echo           |
+| **Enter**     | `insertNewline`         | Insert a new line within the current buffer       |
+| **Cmd+Enter** | `acceptLine`            | Submit line(s), execute command or echo           |

@@ -202,3 +202,4 @@ import "./builtins/cd.ts";
 import "./builtins/pushd.ts";
 import "./builtins/popd.ts";
 import "./builtins/exit.ts";
+import "./builtins/ts.ts";

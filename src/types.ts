@@ -4,7 +4,7 @@ import chalk from "chalk";
 // content of other tokens but that would necessitate special code
 
 // the enum values must be strings to be used in highlightMap
-// TBD : a enum does not scale, need a registry
+// TODO : a enum does not scale, need a registry
 export enum TokenType {
   CommandName = "CommandName",
   Builtin = "Builtin",
@@ -18,7 +18,10 @@ export enum TokenType {
   HTMLtag = "HTMLtag",
   TailwindClass = "TailwindClass",
   HTMLClass = "HTMLClass",
-
+  // Acorn
+  Program = "Program",
+  ExpressionStatement = "ExpressionStatement",
+  Literal = "Literal",
   // subtypes/
   ValidPath = "ValidPath",
   InvalidPath = "InvalidPath",
@@ -64,6 +67,5 @@ const highlightMap: Partial<Record<TokenType, (s: string) => string>> = {
 export function getHighlighter(type: TokenType): (s: string) => string {
   return highlightMap[type] ?? identity;
 }
-
 
 

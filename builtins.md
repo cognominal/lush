@@ -1,12 +1,19 @@
-# builtins
+# Builtins
+
+Lush attempts to interpret the first word as a builtin before attempting
+other interpretations. The line being interpreted as an astre, once chosen
+its builtin nature is hardwired. Until we hook to acorn, the line is
+stored as `TokenMultiLine`.
 
 It appears there will be no distinction between algebraic mode and shellish mode.
 As a result the exact meaning of builtins may change.
 Anyway a builtin surface symbol is displayed as italic by default.
-Probably linking with busybox will add builtins. The goal is to reduce
-dependency on external commands which poses problem of installation and portability.
+Probably linking with [busybox](busybox) will add builtins. The goal is to reduce
+dependency on external commands which pose problems of installation and portability.
 
-### TBD
+At this point, we want enough builtins for a demo.
+
+## TBD
 
 ### cd
 
@@ -14,14 +21,28 @@ Change directory
 
 ### pwd
 
+Print current directory
+
+### mkdir
+
+Equivalent to the command `mkdir -p` but as a builtin
+
+### log
+
+Short for `console.log`
+
+### say
+
+Like Raku say
+
 ### show
 
 ```show file.ts
 ````
 
-Will emit an accorn ast and will unparse it in a `Token[][]`.
+Will emit an acorn AST and will unparse it in a `TokenMultiLine`.
 Once I will have hooked to acorn, will help to unparse svelte
-into leste.
+into Leste.
 
 ### z
 

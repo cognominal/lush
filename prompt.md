@@ -11,7 +11,7 @@ extend or remap bindings like in readline or nvim.
 This project is a mini interactive shell / line editor in TypeScript (run with Bun or Node).
 
 * It runs in the terminal in raw mode and captures keystrokes.
-* Maintains a multi-line input buffer (continuation with \).
+* Maintains a multi-line input buffer where Return inserts new lines.
 * Supports cursor movement (←, → within a line; ↑, ↓ across lines or history).
 * Executes the command if the first word is an executable in $PATH, otherwise echoes it.
 * Preserves all previous output (no screen clearing, only prompt redraw).
@@ -19,3 +19,5 @@ This project is a mini interactive shell / line editor in TypeScript (run with B
 * Defines semantic editing actions (like beginningOfLine, acceptLine, cancelInput).
 * Separates ACTIONS (functions) from a DEFAULT_KEYMAP (key name → action).
 * Users can override keybindings easily or remap them dynamically.
+
+## Naked string

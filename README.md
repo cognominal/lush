@@ -24,6 +24,8 @@ Highlighting is used as primary representation. That complexifies slightly the i
 code syntax simpler and more readable. Most obvious consequences : rejuvenate the concept of naked sting.
 The input will be encoded as a sequence of tokens.
 
+For ts and svelte, see [augmentations](./Acorn-augmentations.md)
+
 # TBD  html, to demonstrate the shell in action. I have a builtin for that
 
 See [naked strings](#naked-strings-cool-again-no-poisoned-apple) (TBD).
@@ -41,7 +43,9 @@ See [secureHash.ts](src/secureHash.ts) for uuids.
 Currently, we do lush as a command line editor. We want to know how far we can go without structural editing.
 For structural editing, we should thing of an API similar in lua (for nvim) and ts (for the terminal).
 Some builtins have for sole purpose to help development. `ts`, `lush` and `lush` will be passed path to
-files in [sample-js](./sample-js) that are simplistic files. We focus on features that help top bootstrap
+files in [sample-js](./sample-js) that are simplistic files. The `ts` builtin accepts `.js`, `.ts`, and
+`.svelte` sources and prints the parsed AST (Acorn for JS/TS, Svelte compiler for Svelte). We focus on
+features that help top bootstrap
 the rest. But, hey, short term usefulness helps too.
 
 - Programming. Not necessarily linked to a feature but needed to run/grow the system
