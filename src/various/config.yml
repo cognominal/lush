@@ -1,0 +1,33 @@
+
+customCommands:
+  # List worktrees
+  - key: "W"
+    context: "global"
+    command: "git worktree list"
+    description: "List worktrees"
+
+  # Add a new worktree
+  - key: "A"
+    context: "global"
+    prompts:
+      - type: "input"
+        title: "Worktree Path (relative to repo root)"
+      - type: "input"
+        title: "Branch name"
+    command: "git worktree add ../{{index .PromptResponses 0}} {{index .PromptResponses 1}}"
+    description: "Add worktree"
+
+  # Remove a worktree
+  - key: "R"
+    context: "global"
+    prompts:
+      - type: "input"
+        title: "Path of worktree to remove"
+    command: "git worktree remove {{index .PromptResponses 0}}"
+    description: "Remove worktree"
+
+  # Switch to an existing worktree using fzf
+  - key: "S"
+    context: "global"
+    command: "cd $(git worktree list | fzf | awk '{print $1}') && lazygit"
+    description: "Switch to worktree (fzf picker)"
