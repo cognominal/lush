@@ -40,6 +40,10 @@ let colIdx = 0;
 const history: HistoryEntry[] = [];
 let histIdx = -1; // -1: no history selection
 
+const DOUBLE_ENTER_THRESHOLD_MS = 350;
+let pendingEnterCount = 0;
+let lastEnterAt = 0;
+
 
 /* ---------- token utilities --------*/
 function createLineFromText(text: string): t.TokenLine {
@@ -224,16 +228,6 @@ function nextHistory() {
 /* ---------------- Submit / execute ---------------- */
 function submit() {
   ensureLine(lineIdx)
-  const lastLineText = lineText(lines[lineIdx]);
-  if (lastLineText.endsWith('\\')) {
-    setLineText(lineIdx, lastLineText.slice(0, -1));
-    lines.splice(lineIdx + 1, 0, createLineFromText(''));
-    lineIdx++;
-    colIdx = 0;
-    renderPrompt();
-    return;
-  }
-
   const full = lines.map(lineText).join('\n').trimEnd();
 
   // Push the prompt block up by starting a new line before output
@@ -493,7 +487,42 @@ function backwardToken() {
   colIdx = 0;
   renderPrompt();
 }
-function acceptLine() { submit(); }
+function resetEnterSequence() {
+  pendingEnterCount = 0;
+  lastEnterAt = 0;
+}
+function insertNewline() {
+  ensureLine(lineIdx)
+  const current = lineText(lines[lineIdx]);
+  const before = current.slice(0, colIdx);
+  const after = current.slice(colIdx);
+  setLineText(lineIdx, before);
+  lines.splice(lineIdx + 1, 0, createLineFromText(after));
+  lineIdx++;
+  colIdx = 0;
+  renderPrompt();
+}
+function enterAction() {
+  const now = Date.now();
+  if (now - lastEnterAt <= DOUBLE_ENTER_THRESHOLD_MS) {
+    pendingEnterCount++;
+  } else {
+    pendingEnterCount = 1;
+  }
+  lastEnterAt = now;
+
+  if (pendingEnterCount >= 2) {
+    resetEnterSequence();
+    acceptLine();
+    return;
+  }
+
+  insertNewline();
+}
+function acceptLine() {
+  resetEnterSequence();
+  submit();
+}
 function clearScreen() {
   // Clear screen + home, prompt will redraw at bottom next
   process.stdout.write("\x1b[2J\x1b[H");
@@ -529,6 +558,8 @@ const ACTIONS: Record<string, () => void> = {
   deleteChar,
   backwardDeleteChar,
   backwardToken,
+  enterAction,
+  insertNewline,
   acceptLine,
   clearScreen,
   killLineEnd,
@@ -538,6 +569,19 @@ const ACTIONS: Record<string, () => void> = {
 /* ---------------- Escape sequences → key names ---------------- */
 const SEQ_TO_NAME: Record<string, string> = {
   "\r": "enter",
+  "\n": "enter",
+  // Command/Super + Enter (Ghostty, iTerm2, and terminals supporting CSI-u modifiers)
+  "\u001b[13;9~": "cmd-enter",
+  "\u001b[13;9u": "cmd-enter",
+  "\u001bO9M": "cmd-enter",
+  "\u001b[13;13~": "cmd-enter",
+  "\u001b[13;13u": "cmd-enter",
+  "\u001bO13M": "cmd-enter",
+  "\u001b[13;17~": "cmd-enter",
+  "\u001b[13;17u": "cmd-enter",
+  "\u001bO17M": "cmd-enter",
+  "\u001b\r": "cmd-enter",
+  "\u001b\n": "cmd-enter",
   "\u007F": "backspace",
   "\u0003": "ctrl-c",
   "\u0004": "ctrl-d",
@@ -589,7 +633,8 @@ const DEFAULT_KEYMAP: Record<string, string> = {
   "end": "endOfLine",
   "delete": "deleteChar",
   "backspace": "backwardDeleteChar",
-  "enter": "acceptLine",
+  "enter": "enterAction",
+  "cmd-enter": "acceptLine",
 };
 
 /* ---------------- Input event string tokenizer ---------------- */
@@ -638,10 +683,12 @@ process.stdin.on("data", (chunk: string) => {
   const tokens: EventToken[] = tokenize(chunk);
   for (const t of tokens) {
     if (t.kind === "key") {
+      if (t.name !== "enter") resetEnterSequence();
       const actionName = DEFAULT_KEYMAP[t.name];
       const action = actionName && ACTIONS[actionName];
       if (action) action();
     } else {
+      resetEnterSequence();
       insertText(t.text);
     }
   }
