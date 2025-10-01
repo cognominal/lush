@@ -32,7 +32,7 @@ See [secureHash.ts](src/secureHash.ts) for uuids.
 ## Planned/Done
 
 Currently, we do lush as command line editor. We want to know how far we can go without structural editing.
-For sturctual editing, we should thing of an API similar in lua (for nvim) and ts (for the terminal)
+For structural editing, we should thing of an API similar in lua (for nvim) and ts (for the terminal)
 
 - Multi line editor.
   - [x] Core logic
@@ -40,7 +40,7 @@ For sturctual editing, we should thing of an API similar in lua (for nvim) and t
   - [ ] Type logic. Once in a space, fast double space, should rotate between the logical types for the previous tokem
   - [ ] Backslash for metachars specially highlighted as one char
   - [ ] Same for globbing
-[-] Builtins
+- Builtins
   - [x] Core logic
   - [x] Builtin command `builtins` that list the builtins
   - [ ] Use minimist
@@ -66,11 +66,11 @@ For sturctual editing, we should thing of an API similar in lua (for nvim) and t
     - [ ] saving history, per cwd
     - [ ] History saved as Astre
 
-- Astre (Ast REference Representation) is what it says, and what we interact with is an Astre unparing
-  - [ ] build on Acorn a la svelte
+- Astre (Ast REference Representation) is what it says, and what we interact with is an Astre unparsing
+  - [ ] Build on Acorn a la svelte
   - [ ] Node UUID
-  - [ ] a map that binds symbol UUID to external names (general, localized, personal)
-  - [ ] grit, a diff system based on Astre, not on lines
+  - [ ] A map that binds symbol UUID to external names (general, localized, personal)
+  - [ ] Grit, a diff system based on Astre, not on lines
 - Leste, a better svelte representation, adapted from code of [svelte.dev](https://github.com/sveltejs/svelte.dev)
   - [ ] Using xtermjs in svelte to make shell as notebooks
 - Various
