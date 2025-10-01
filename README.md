@@ -1,14 +1,26 @@
 # lush, a shell in node
 
+## Run me
+
+No release yet.
+
+```bun run start
+```
+
 ## Lush is special
 
 Work in progress, see [now](#now).
+
+A shell that runs on node.
+Highlighting is used as primary representation. That complexifies slightly the input by the user but that makes
+code syntax simpler and more readable. Most obvious consequences : rejuvenate the concept of naked sting.
+The input will be encoded as a sequence of tokens.
+
+# TBD  html, to demonstrate the shell in action. I have a builtin for that
+
 See [naked strings](#naked-strings-cool-again-no-poisoned-apple) (TBD).
 We focus now on features more than configurability.
 
-Highlighting is used as primary representation. That complexifies slightly the input by the user
-but that makes
-code syntax simpler and more readable. The input will be encoded as a sequence of tokens.
 See [type.ts](src/types.ts).
 Eventually the reference readable representation of code is an augmented AST (astre) with nodes using unique id, this will
 revolutionize diff handling. The augmented AST is [acorn](https://github.com/acornjs/acorn).
@@ -16,14 +28,46 @@ The astre will be unparsed in [unparse.ts](./src/unparse.ts)`. More info [here](
 But that's for [later](#more-long-term).
 See [secureHash.ts](src/secureHash.ts) for uuids.
 
-## Done
+## Planned/Done
 
-Multi line editor. Launching commands with space separated argument.
+Currently, we do lush as command line editor. We want to know how far we can go without structural editing.
+For sturctual editing, we should thing of an API similar in lua (for nvim) and ts (for the terminal)
+
+- Multi line editor.
+  - [x] Core logic
+  - [ ] Handling spaces. Fast double space should exit current token and move next token which is a space one, creating it if missing
+  - [ ] Sackslash for metachars specially highlighted as one char
+  - [ ] Same for globbing
+  - [ ] Type logic. Once in a space, fast double space, should rotate between the logical types for the previous tokem
+[-] Builtins
+  - [x] Core logic
+  - [x] Builtin command `builtins` that list the builtins
+  - [ ] Use minimist
+  - [ ] `-hh` should output one liner help for builtins except `builtins`
+  - [ ] With builtins, it calls all the other builtins with `--h`
+- lush : Features specific to lush  
+  - [ ] Hooking to acorn to do more than launching commands and executing builtins.
+  - [ ] Expressions with less spacing to identify subexpressions  a + b  *c  means (a+b)*c
+  - [ ] Typed pipes a la nushell
+  - [ ] A builtin `ts` that output the unparsing of ts/js/svelte file
+- classic shell features
+  - [ ] Aliases ??
+  - [ ] Globbing
+  - [ ] Simple redirections
+  - [ ] Job control
+  - History
+  - [ ] ^P, ^N move in history
+  - [ ] but should display with same initial tokens
+  - [ ] saving history, per cwd
+  - [ ]
+- Various
+- [ ] stackblitz
+- [ ]
+- Nvim. We now run in a terminal. We want to program lush in nvim
 
 ## Working on
 
-Writing code for tokenisation. Types in `src/types.ts`, (de)serialization will be in `src/history.ts`.
-`src/editor.ts` will need a complete overhaul.
+UI. Better handling of token and subtokens
 
 ## Naked strings cool again, no poisoned Apple
 
@@ -84,15 +128,15 @@ To separate arguments, type 2 space in rapid sequence.
 
 Not necessarily in the given order.
 
-* implicit `cd`. A naked string as unique token that can be interpreted as folder path. Other tokens are ignored and not registered in history.
+- implicit `cd`. A naked string as unique token that can be interpreted as folder path. Other tokens are ignored and not registered in history.
 See also [cd](./builtins.md#cd) and [z](./builtins#z).
-* builtins, user functions (aliases can be made user functions?)
-* An history for each cwd stored using freedesktop file hierarchy conventions. Moving up and down
+- builtins, user functions (aliases can be made user functions?)
+- An history for each cwd stored using freedesktop file hierarchy conventions. Moving up and down
 selecting commands which start with the same current string.
-* highlighting as primary notation. Start with naked string with metachars as regular code. Naked string highlighted as
+- highlighting as primary notation. Start with naked string with metachars as regular code. Naked string highlighted as
 a special background.
-* borrow from [slash](https://github.com/cronvel/slash) for regular pipes and redirections
-* typed pipes
+- borrow from [slash](https://github.com/cronvel/slash) for regular pipes and redirections
+- typed pipes
 
 ## Thinking mid term
 
@@ -103,7 +147,7 @@ Can I use/create an adapter and use nvim, with what plugin, as a backend.
 Add raku syntax in the mix.
 Optional autovivifying  (explicit in programs, default in command line).
 
-* to enable it. - to disable it.    @a+<toto>
+- to enable it. - to disable it.    @a+<toto>
 Raku syntax. Will be simplified with highlighting as primary notation.
 @*PATH
 
