@@ -10,7 +10,7 @@ registerBuiltin("pushd", (ctx: BuiltinContext) => {
     return;
   }
   if (help === "double") {
-    ctx.write("TBD -h -h\n");
+    ctx.write("Switch to directory and push it on the stack\n");
     return;
   }
 

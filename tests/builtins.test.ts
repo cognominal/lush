@@ -82,7 +82,7 @@ describe("cd builtin", () => {
       write: chunk => { chunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("TBD -h -h\n");
+    expect(chunks.join("")).toBe("Go to the specified directory\n");
     expect(process.cwd()).toBe(startCwd);
   });
 
@@ -110,6 +110,30 @@ describe("cd builtin", () => {
     });
     expect(process.cwd()).toBe(homeDir);
     expect(chunks.join("")).toBe(`${homeDir}\n`);
+  });
+
+  it("prints placeholder help for a single -h", () => {
+    const chunks: string[] = [];
+    cdBuiltin({
+      argv: ["-h"],
+      raw: "cd -h",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(process.cwd()).toBe(startCwd);
+    expect(chunks.join("")).toBe("TBD -h\n");
+  });
+
+  it("describes cd when -hh is provided", () => {
+    const chunks: string[] = [];
+    cdBuiltin({
+      argv: ["-hh"],
+      raw: "cd -hh",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(process.cwd()).toBe(startCwd);
+    expect(chunks.join("")).toBe("Go to the specified directory\n");
   });
 
   it("errors when too many arguments are supplied", () => {
@@ -166,7 +190,7 @@ describe("pushd/popd builtins", () => {
       write: chunk => { chunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("TBD -h -h\n");
+    expect(chunks.join("")).toBe("Switch to directory and push it on the stack\n");
     expect(process.cwd()).toBe(startCwd);
     expect(getDirectoryStack()).toEqual([]);
   });
@@ -183,6 +207,32 @@ describe("pushd/popd builtins", () => {
     expect(process.cwd()).toBe(target);
     expect(chunks.join("")).toBe(`${target}\n`);
     expect(getDirectoryStack()).toEqual([startCwd]);
+  });
+
+  it("prints placeholder help for -h", () => {
+    const chunks: string[] = [];
+    pushdBuiltin({
+      argv: ["-h"],
+      raw: "pushd -h",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(process.cwd()).toBe(startCwd);
+    expect(getDirectoryStack()).toEqual([]);
+    expect(chunks.join("")).toBe("TBD -h\n");
+  });
+
+  it("describes pushd when -hh is provided", () => {
+    const chunks: string[] = [];
+    pushdBuiltin({
+      argv: ["-hh"],
+      raw: "pushd -hh",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(process.cwd()).toBe(startCwd);
+    expect(getDirectoryStack()).toEqual([]);
+    expect(chunks.join("")).toBe("Switch to directory and push it on the stack\n");
   });
 
   it("returns to previous directory with popd", () => {
@@ -224,7 +274,7 @@ describe("pushd/popd builtins", () => {
       write: chunk => { chunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("TBD -h -h\n");
+    expect(chunks.join("")).toBe("Remove the top directory from the stack and cd to it\n");
   });
 
   it("warns when popd stack is empty", () => {
@@ -236,6 +286,30 @@ describe("pushd/popd builtins", () => {
       history: [],
     });
     expect(chunks.join("")).toBe("popd: directory stack empty\n");
+  });
+
+  it("prints placeholder help for popd -h", () => {
+    clearDirectoryStack();
+    const chunks: string[] = [];
+    popdBuiltin({
+      argv: ["-h"],
+      raw: "popd -h",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("TBD -h\n");
+  });
+
+  it("describes popd for -hh", () => {
+    clearDirectoryStack();
+    const chunks: string[] = [];
+    popdBuiltin({
+      argv: ["-hh"],
+      raw: "popd -hh",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe("Remove the top directory from the stack and cd to it\n");
   });
 });
 

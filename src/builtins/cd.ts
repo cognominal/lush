@@ -9,7 +9,7 @@ registerBuiltin("cd", (ctx: BuiltinContext) => {
     return;
   }
   if (help === "double") {
-    ctx.write("TBD -h -h\n");
+    ctx.write("Go to the specified directory\n");
     return;
   }
 

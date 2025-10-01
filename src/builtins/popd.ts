@@ -10,7 +10,7 @@ registerBuiltin("popd", (ctx: BuiltinContext) => {
     return;
   }
   if (help === "double") {
-    ctx.write("TBD -h -h\n");
+    ctx.write("Remove the top directory from the stack and cd to it\n");
     return;
   }
 
