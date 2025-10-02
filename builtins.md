@@ -11,6 +11,17 @@ Anyway a builtin surface symbol is displayed as italic by default.
 Probably linking with [busybox](busybox) will add builtins. The goal is to reduce
 dependency on external commands which pose problems of installation and portability.
 
+### BusyBox integration
+
+The CLI can use BusyBox when a shared library build is available. Provide
+`libbusybox.(so|dylib)` plus the companion `libbusybox_host.(so|dylib)` shim in
+either `vendor/busybox/<platform>-<arch>/`, `lib/`, or by setting
+`LUSH_BUSYBOX_SO` and `LUSH_BUSYBOX_HOST`. On startup the host library loads
+BusyBox, enumerates its applets via `busybox --list`, and exposes wrappers so
+each applet appears as a builtin. Output is captured through a pipe so history
+records BusyBox results alongside native commands. Existing builtins still win
+if they share a name with a BusyBox applet.
+
 At this point, we want enough builtins for a demo.
 
 ## TBD
