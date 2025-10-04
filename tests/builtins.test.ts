@@ -57,7 +57,7 @@ describe("builtins builtin", () => {
 
   it("lists builtins alphabetically by default", () => {
     const output = invoke([], "builtins");
-    expect(output).toBe("builtins\ncd\nexit\nhtml\npopd\npushd\nts\n");
+    expect(output).toBe("bg\nbuiltins\ncd\ndisown\nexit\nfg\nhtml\njobs\nkill\npopd\npushd\nsuspend\nsuspend-job\nts\nwait\n");
   });
 
   it("prints placeholder help for -h", () => {
@@ -73,13 +73,21 @@ describe("builtins builtin", () => {
   it("shows descriptions for -hh", () => {
     const output = invoke(["-hh"], "builtins -hh");
     expect(output).toBe([
+      "bg         Continue a stopped job in the background",
       "builtins   TBD",
       "cd         TBD",
+      "disown     Remove jobs from tracking",
       "exit       exit Lush shell",
+      "fg         Resume a job in the foreground",
       "html       TBD",
+      "jobs       List tracked jobs",
+      "kill       Send a signal to a job or pid",
       "popd       TBD",
       "pushd      TBD",
+      "suspend    Suspend the shell",
+      "suspend-job Suspend the foreground job",
       "ts         Parse JS/TS/Svelte file",
+      "wait       Wait on the last job or provided IDs",
       "",
     ].join("\n"));
   });

@@ -9,6 +9,15 @@ import { spawn } from "node:child_process";
 import chalk from 'chalk'
 import { getBuiltin, type HistoryEntry, type BuiltinContext } from './builtins.ts'
 import * as t from './types.ts'
+import {
+  registerJob,
+  configureJobControl,
+  getForegroundJob,
+  killJob,
+  suspendForegroundJob,
+  suspendShell,
+  resumeShell,
+} from './jobControl.ts'
 process.stdin.setRawMode?.(true);
 process.stdin.resume();
 process.stdin.setEncoding("utf8");
@@ -39,6 +48,7 @@ let colIdx = 0;
 
 const history: HistoryEntry[] = [];
 let histIdx = -1; // -1: no history selection
+let inputLocked = false;
 
 const DOUBLE_ENTER_THRESHOLD_MS = 350;
 let pendingEnterCount = 0;
@@ -226,28 +236,51 @@ function nextHistory() {
 }
 
 /* ---------------- Submit / execute ---------------- */
+function detectBackground(input: string): { command: string; background: boolean } {
+  const trimmed = input.trimEnd();
+  if (!trimmed) {
+    return { command: "", background: false };
+  }
+  if (trimmed.endsWith("&")) {
+    return { command: trimmed.slice(0, -1).trimEnd(), background: true };
+  }
+  return { command: trimmed, background: false };
+}
+
 function submit() {
   ensureLine(lineIdx)
-  const full = lines.map(lineText).join('\n').trimEnd();
+  const joined = lines.map(lineText).join('
+');
+  const { command, background } = detectBackground(joined);
 
   // Push the prompt block up by starting a new line before output
-  process.stdout.write("\n");
+  process.stdout.write("
+");
 
-  if (full.length === 0) {
+  if (!command) {
     resetBuffer();
     renderPrompt();
     return;
   }
 
   const recordHistory = (output: string) => {
-    history.push({ command: full, output });
+    history.push({ command, output });
     histIdx = -1;
   };
 
-  const tokens = full.split(/\s+/).filter(Boolean);
+  const tokens = command.replace(/ +/g, " ").trim().split(/\s+/).filter(Boolean);
   const first = tokens[0] ?? "";
   const builtinHandler = getBuiltin(first);
   if (builtinHandler) {
+    if (background) {
+      const line = `${first}: cannot run builtin in background
+`;
+      process.stderr.write(line);
+      recordHistory(line);
+      resetBuffer();
+      renderPrompt();
+      return;
+    }
     let outputBuffer = "";
     const historySnapshot = history.slice();
     const write = (chunk: string) => {
@@ -257,7 +290,7 @@ function submit() {
     };
     const context: BuiltinContext = {
       argv: tokens.slice(1),
-      raw: full,
+      raw: command,
       write,
       history: historySnapshot,
     };
@@ -272,8 +305,10 @@ function submit() {
         Promise.resolve(maybe)
           .catch(err => {
             const msg = err instanceof Error ? err.message : String(err);
-            process.stderr.write(`builtin ${first} failed: ${msg}\n`);
-            outputBuffer += `builtin ${first} failed: ${msg}\n`;
+            process.stderr.write(`builtin ${first} failed: ${msg}
+`);
+            outputBuffer += `builtin ${first} failed: ${msg}
+`;
           })
           .finally(finalize);
       } else {
@@ -281,8 +316,10 @@ function submit() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`builtin ${first} failed: ${msg}\n`);
-      outputBuffer += `builtin ${first} failed: ${msg}\n`;
+      process.stderr.write(`builtin ${first} failed: ${msg}
+`);
+      outputBuffer += `builtin ${first} failed: ${msg}
+`;
       finalize();
     }
     return;
@@ -291,19 +328,24 @@ function submit() {
   const exe = isExecutableOnPath(first);
 
   if (exe) {
-    const args = full.replace(/\n+/g, " ").trim().split(/\s+/);
+    const args = command.replace(/
+      + /g, " ").trim().split(/\s +/);
     const [cmd, ...rest] = args;
     let outputBuffer = "";
-    let settled = false;
-    const finalize = () => {
-      if (settled) return;
-      settled = true;
-      process.stdout.write("\n");
+    let finalized = false;
+    const finalize = (cause: "exit" | "error") => {
+      if (finalized) return;
+      finalized = true;
       recordHistory(outputBuffer);
-      resetBuffer();
-      renderPrompt();
+      if (!background) {
+        process.stdout.write("
+");
+        resetBuffer();
+        renderPrompt();
+      }
     };
     const child = spawn(cmd, rest, { stdio: ["inherit", "pipe", "pipe"] });
+    registerJob(command, child, background);
     child.stdout?.on("data", chunk => {
       const str = chunk.toString();
       process.stdout.write(str);
@@ -316,19 +358,26 @@ function submit() {
     });
     child.on("error", err => {
       const msg = err instanceof Error ? err.message : String(err);
-      const line = `failed to execute ${cmd}: ${msg}\n`;
+      const line = `failed to execute ${cmd}: ${msg}
+`;
       process.stderr.write(line);
       outputBuffer += line;
-      finalize();
+      finalize("error");
     });
-    child.on("exit", finalize);
-  } else {
-    const output = `echo: ${full}\n`;
-    process.stdout.write(output);
-    recordHistory(output);
-    resetBuffer();
-    renderPrompt();
+    child.on("exit", () => finalize("exit"));
+    if (background) {
+      resetBuffer();
+      renderPrompt();
+    }
+    return;
   }
+
+  const output = `echo: ${command}
+`;
+  process.stdout.write(output);
+  recordHistory(output);
+  resetBuffer();
+  renderPrompt();
 }
 
 function resetBuffer() {
@@ -542,10 +591,30 @@ function killLineBeginning() {
   renderPrompt();
 }
 
+function interrupt() {
+  const job = getForegroundJob();
+  if (job) {
+    killJob(job, "SIGINT");
+    return;
+  }
+  exitEditor();
+}
+
+function suspendCurrent() {
+  const job = getForegroundJob();
+  if (job) {
+    suspendForegroundJob();
+    return;
+  }
+  suspendShell();
+}
+
 /* ---------------- Actions registry ---------------- */
 const ACTIONS: Record<string, () => void> = {
   exitEditor,
   deleteOrEOF,
+  interrupt,
+  suspendCurrent,
   beginningOfLine,
   endOfLine,
   backwardChar,
@@ -594,6 +663,7 @@ const SEQ_TO_NAME: Record<string, string> = {
   "\u000c": "ctrl-l",
   "\u0010": "ctrl-p",
   "\u000E": "ctrl-n",
+  "\u001a": "ctrl-z",
   "\u001bf": "meta-f",
   "\u001bF": "meta-f",
   "\u001bb": "meta-b",
@@ -612,7 +682,7 @@ const SEQS_DESC = Object.keys(SEQ_TO_NAME).sort((a, b) => b.length - a.length);
 
 /* ---------------- Default keymap (key name → action name) ---------------- */
 const DEFAULT_KEYMAP: Record<string, string> = {
-  "ctrl-c": "exitEditor",
+  "ctrl-c": "interrupt",
   "ctrl-d": "deleteOrEOF",
   "ctrl-a": "beginningOfLine",
   "ctrl-b": "backwardChar",
@@ -628,6 +698,7 @@ const DEFAULT_KEYMAP: Record<string, string> = {
   "down": "nextLineAction",
   "ctrl-p": "previousHistoryAction", // history on C-p/C-n
   "ctrl-n": "nextHistoryAction",
+  "ctrl-z": "suspendCurrent",
   "meta-b": "backwardToken",
   "home": "beginningOfLine",
   "end": "endOfLine",
@@ -678,21 +749,46 @@ function insertText(text: string) {
   renderPrompt();
 }
 
+configureJobControl({
+  pauseInput: () => {
+    inputLocked = true;
+  },
+  resumeInput: () => {
+    if (!inputLocked) return;
+    inputLocked = false;
+    renderPrompt();
+  },
+  renderPrompt,
+  writeOut: chunk => {
+    process.stdout.write(chunk);
+  },
+});
+
 /* ---------------- Input loop ---------------- */
-process.stdin.on("data", (chunk: string) => {
+function handleInput(chunk: string) {
   const tokens: EventToken[] = tokenize(chunk);
   for (const t of tokens) {
     if (t.kind === "key") {
       if (t.name !== "enter") resetEnterSequence();
       const actionName = DEFAULT_KEYMAP[t.name];
+      if (inputLocked && actionName && actionName !== "interrupt" && actionName !== "suspendCurrent") {
+        continue;
+      }
       const action = actionName && ACTIONS[actionName];
       if (action) action();
     } else {
+      if (inputLocked) continue;
       resetEnterSequence();
       insertText(t.text);
     }
   }
+}
+
+process.stdin.on("data", handleInput);
+process.on("SIGCONT", () => {
+  resumeShell();
 });
+
 
 // Initial draw
 renderPrompt();

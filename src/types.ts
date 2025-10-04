@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import type { ChildProcess } from "node:child_process";
 
 // TBD : remove the Space token, that can be inferred from the position and
 // content of other tokens but that would necessitate special code
@@ -67,5 +68,22 @@ const highlightMap: Partial<Record<TokenType, (s: string) => string>> = {
 export function getHighlighter(type: TokenType): (s: string) => string {
   return highlightMap[type] ?? identity;
 }
+export enum JobStatus {
+  Running = "running",
+  Stopped = "stopped",
+  Done = "done",
+}
 
-
+export interface Job {
+  id: number;
+  pid: number | null;
+  command: string;
+  process: ChildProcess;
+  status: JobStatus;
+  background: boolean;
+  startedAt: Date;
+  exitCode: number | null;
+  signal: NodeJS.Signals | null;
+  stoppedAt?: Date;
+  disowned?: boolean;
+}
