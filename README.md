@@ -43,12 +43,16 @@ uuids.
 
 Currently, we do lush as a command line editor. We want to know how far we can
 go without structural  editing. For structural editing, we should thing of an
-API similar in lua (for nvim) and ts (for the terminal). Some builtins have for
-sole purpose to help development. `ts`, `lush` and `lush` will be passed path
-to files in [sample-js](./sample-js) that are simplistic files. The `ts`
+API similar in Lua (for nvim) and ts (for the terminal). Some builtins have
+for sole purpose to help development. `ts`, `lush` and `lush` will be passed
+path to files in [sample-js](./sample-js) that are simplistic files. The `ts`
 builtin accepts `.js`, `.ts`, and `.svelte` sources and prints the parsed AST
 (Acorn for JS/TS, Svelte compiler for Svelte). We focus on features that help
 top bootstrap the rest. But, hey, short term usefulness helps too.
+
+Some items are moved to avoid cluttering the Readme.
+
+[builtins](./builtins.md)
 
 - Programming. Not necessarily linked to a feature but needed to run/grow the system
   - [ ] `Token` should be a registry not an enum. Rename to ast node
@@ -56,26 +60,18 @@ top bootstrap the rest. But, hey, short term usefulness helps too.
   - [ ] check display of multilevel tokens
 - Multi line editor.
   - [x] Core logic
-  - [ ] correct handling of tokens when launching builtins and commands, meaning space token separates arguments
+  - [ ] correct handling of tokens when launching builtins and commands,
+  meaning space token separates arguments
   - [ ] On missing command or builtin don't echo anymore
-  - [ ] On submit on empty command, possibly multi line, emit a bell, don't add to history
-  - [ ] Handling spaces. Fast double space should exit current token and move next token which one of Space type, creating it if missing
-  - [ ] Type logic. Once in a space, fast double space, should rotate between the logical types for the previous token
+  - [ ] On submit on empty command, possibly multi line, emit a bell, don'ti
+  add to history
+  - [ ] Handling spaces. Fast double space should exit current token and move
+  next token which one of Space type, creating it if missing
+  - [ ] Type logic.  Once in a space, fast double space, should rotate between
+  the logical types for the previous token
   - [ ] Backslash for metachars specially highlighted as one char
   - [ ] Same for globbing
   - [ ] Command/builtin completion
-- Builtins
-  - [x] Core logic
-  - [x] Builtin command `builtins` that list the builtins
-  - [ ] Minimal support of builtins  `cd`, `pushd`,  `popd` (`dirs` TBD). The 3
-  latter should print the resulting stack
-  - [ ] Use minimist
-  - [x] `-hh` should output one liner help for builtins except `builtins`
-  - [ ] With builtins `builtin`, it calls all the other builtins with `-h`
-  - [ ] `ts` takes as argument a path to a js/ts file and use json  stringify
-  to display it
-  - [ ] `lush`  will do the same but will display it in lush tokenized format
-  - [ ] `lushh`` will do the same and will add it to history
 - lush : Features specific to lush  
 - [ ] Hooking to acorn to do more than launching commands and executing builtins.
 - [ ] Typed pipes a la nushell
