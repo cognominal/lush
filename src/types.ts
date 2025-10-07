@@ -37,6 +37,7 @@ export interface Token {
   tokenIdx: number
   text?: string // missing for types that have subtypes
   subTokens?: Token[]
+  x?: number
 }
 
 export enum OprType {

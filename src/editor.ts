@@ -9,6 +9,8 @@ import { spawn } from "node:child_process";
 import chalk from 'chalk'
 import { getBuiltin, type HistoryEntry, type BuiltinContext } from './builtins.ts'
 import * as t from './types.ts'
+import { prompt } from './prompt.ts'
+import { tokenizeLine, handleDoubleSpace as computeDoubleSpace, collectArgumentTexts } from './tokenLine.ts'
 import {
   registerJob,
   configureJobControl,
@@ -54,15 +56,14 @@ const DOUBLE_ENTER_THRESHOLD_MS = 350;
 let pendingEnterCount = 0;
 let lastEnterAt = 0;
 
+const DOUBLE_SPACE_THRESHOLD_MS = 350;
+let pendingSpaceCount = 0;
+let lastSpaceAt = 0;
+
 
 /* ---------- token utilities --------*/
 function createLineFromText(text: string): t.TokenLine {
-  if (!text) return []
-  return [{
-    type: t.TokenType.AnyString,
-    tokenIdx: 0,
-    text
-  }]
+  return tokenizeLine(text)
 }
 
 function tokenText(token: t.Token): string {
@@ -104,6 +105,16 @@ function lineTokenSpans(line: t.TokenLine | undefined): TokenSpan[] {
     offset += length
   }
   return spans
+}
+
+function stripBackgroundIndicator(args: string[], background: boolean): string[] {
+  if (!background) return args;
+  if (!args.length) return args;
+  const last = args[args.length - 1];
+  if (last === '&') {
+    return args.slice(0, -1);
+  }
+  return args;
 }
 
 
@@ -249,13 +260,12 @@ function detectBackground(input: string): { command: string; background: boolean
 
 function submit() {
   ensureLine(lineIdx)
-  const joined = lines.map(lineText).join('
-');
+  const joined = lines.map(lineText).join(' ');
+  const rawArgs = collectArgumentTexts(lines);
   const { command, background } = detectBackground(joined);
 
   // Push the prompt block up by starting a new line before output
-  process.stdout.write("
-");
+  process.stdout.write("\n");
 
   if (!command) {
     resetBuffer();
@@ -263,13 +273,14 @@ function submit() {
     return;
   }
 
+  const args = stripBackgroundIndicator(rawArgs, background);
+  const first = args[0] ?? "";
+
   const recordHistory = (output: string) => {
     history.push({ command, output });
     histIdx = -1;
   };
 
-  const tokens = command.replace(/ +/g, " ").trim().split(/\s+/).filter(Boolean);
-  const first = tokens[0] ?? "";
   const builtinHandler = getBuiltin(first);
   if (builtinHandler) {
     if (background) {
@@ -289,7 +300,7 @@ function submit() {
       process.stdout.write(str);
     };
     const context: BuiltinContext = {
-      argv: tokens.slice(1),
+      argv: args.slice(1),
       raw: command,
       write,
       history: historySnapshot,
@@ -328,8 +339,6 @@ function submit() {
   const exe = isExecutableOnPath(first);
 
   if (exe) {
-    const args = command.replace(/
-      + /g, " ").trim().split(/\s +/);
     const [cmd, ...rest] = args;
     let outputBuffer = "";
     let finalized = false;
@@ -338,8 +347,7 @@ function submit() {
       finalized = true;
       recordHistory(outputBuffer);
       if (!background) {
-        process.stdout.write("
-");
+        process.stdout.write(" ");
         resetBuffer();
         renderPrompt();
       }
@@ -381,6 +389,7 @@ function submit() {
 }
 
 function resetBuffer() {
+  resetSpaceSequence()
   lines = [createLineFromText('')]
   lineIdx = 0;
   colIdx = 0;
@@ -540,7 +549,29 @@ function resetEnterSequence() {
   pendingEnterCount = 0;
   lastEnterAt = 0;
 }
+function resetSpaceSequence() {
+  pendingSpaceCount = 0;
+  lastSpaceAt = 0;
+}
+function insertCharacter(ch: string) {
+  ensureLine(lineIdx)
+  const current = lineText(lines[lineIdx]);
+  const before = current.slice(0, colIdx);
+  const after = current.slice(colIdx);
+  const next = before + ch + after;
+  setLineText(lineIdx, next);
+  colIdx += ch.length;
+}
+function handleDoubleSpaceEvent() {
+  ensureLine(lineIdx)
+  const current = lineText(lines[lineIdx]);
+  const { text, cursor } = computeDoubleSpace(current, colIdx);
+  setLineText(lineIdx, text);
+  colIdx = cursor;
+  resetSpaceSequence();
+}
 function insertNewline() {
+  resetSpaceSequence()
   ensureLine(lineIdx)
   const current = lineText(lines[lineIdx]);
   const before = current.slice(0, colIdx);
@@ -739,14 +770,29 @@ function tokenize(input: string): EventToken[] {
 /* ---------------- Insert text ---------------- */
 function insertText(text: string) {
   if (!text) return;
-  ensureLine(lineIdx)
-  const current = lineText(lines[lineIdx]);
-  const before = current.slice(0, colIdx);
-  const after = current.slice(colIdx);
-  const next = before + text + after;
-  setLineText(lineIdx, next);
-  colIdx += text.length;
-  renderPrompt();
+  let mutated = false;
+  for (const ch of text) {
+    if (ch === ' ') {
+      const now = Date.now();
+      if (now - lastSpaceAt <= DOUBLE_SPACE_THRESHOLD_MS) {
+        pendingSpaceCount++;
+      } else {
+        pendingSpaceCount = 1;
+      }
+      lastSpaceAt = now;
+      if (pendingSpaceCount === 1) {
+        insertCharacter(ch);
+      } else {
+        handleDoubleSpaceEvent();
+      }
+      mutated = true;
+      continue;
+    }
+    resetSpaceSequence();
+    insertCharacter(ch);
+    mutated = true;
+  }
+  if (mutated) renderPrompt();
 }
 
 configureJobControl({
@@ -770,6 +816,7 @@ function handleInput(chunk: string) {
   for (const t of tokens) {
     if (t.kind === "key") {
       if (t.name !== "enter") resetEnterSequence();
+      resetSpaceSequence();
       const actionName = DEFAULT_KEYMAP[t.name];
       if (inputLocked && actionName && actionName !== "interrupt" && actionName !== "suspendCurrent") {
         continue;
