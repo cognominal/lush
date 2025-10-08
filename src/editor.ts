@@ -8,8 +8,8 @@ import readline from "node:readline";
 import { spawn } from "node:child_process";
 import chalk from 'chalk'
 import { getBuiltin, type HistoryEntry, type BuiltinContext } from './builtins.ts'
-import * as t from './types.ts'
-import { prompt } from './prompt.ts'
+import { type InputToken, type TokenLine, type TokenMultiLine, getHighlighter } from './types.ts'
+// import { prompt } from './prompt.ts'
 import { tokenizeLine, handleDoubleSpace as computeDoubleSpace, collectArgumentTexts } from './tokenLine.ts'
 import {
   registerJob,
@@ -40,7 +40,7 @@ function isExecutableOnPath(cmd: string): string | null {
 }
 
 /* ---------------- Editor state ---------------- */
-let lines: t.TokenMultiLine = [createLineFromText('')]
+let lines: TokenMultiLine = [createLineFromText('')]
 
 // Curent cursor position
 let lineIdx = 0;
@@ -62,17 +62,17 @@ let lastSpaceAt = 0;
 
 
 /* ---------- token utilities --------*/
-function createLineFromText(text: string): t.TokenLine {
+function createLineFromText(text: string): TokenLine {
   return tokenizeLine(text)
 }
 
-function tokenText(token: t.Token): string {
+function tokenText(token: InputToken): string {
   if (typeof token.text === 'string') return token.text
   if (token.subTokens?.length) return token.subTokens.map(tokenText).join('')
   return ''
 }
 
-function ensureLine(index: number): t.TokenLine {
+function ensureLine(index: number): TokenLine {
   if (!lines[index]) {
     lines[index] = []
   }
@@ -83,18 +83,18 @@ function setLineText(index: number, text: string) {
   lines[index] = createLineFromText(text)
 }
 
-function lineText(line: t.TokenLine | undefined): string {
+function lineText(line: TokenLine | undefined): string {
   if (!line || line.length === 0) return ''
   return line.map(tokenText).join('')
 }
 
-function lineLength(line: t.TokenLine | undefined): number {
+function lineLength(line: TokenLine | undefined): number {
   return lineText(line).length
 }
 
-type TokenSpan = { start: number; end: number; token: t.Token }
+type TokenSpan = { start: number; end: number; token: InputToken }
 
-function lineTokenSpans(line: t.TokenLine | undefined): TokenSpan[] {
+function lineTokenSpans(line: TokenLine | undefined): TokenSpan[] {
   if (!line || line.length === 0) return []
   const spans: TokenSpan[] = []
   let offset = 0
@@ -119,17 +119,17 @@ function stripBackgroundIndicator(args: string[], background: boolean): string[]
 
 
 /* ---------------- Rendering (zsh-style: always at bottom) ---------------- */
-function renderLine(line: t.TokenLine | undefined): string {
+function renderLine(line: TokenLine | undefined): string {
   if (!line || line.length === 0) return ''
   return line
-    .map((tk: t.Token) => {
-      const highlighter = t.getHighlighter(tk.type)
+    .map((tk: InputToken) => {
+      const highlighter = getHighlighter(tk.type)
       return highlighter(tokenText(tk))
     })
     .join('')
 }
 
-function highlightFirstWord(line: t.TokenLine): string {
+function highlightFirstWord(line: TokenLine): string {
   const rendered = renderLine(line)
   const m = lineText(line).match(/^(\S+)(.*)$/)
   if (!m) return rendered

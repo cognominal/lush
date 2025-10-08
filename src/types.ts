@@ -32,11 +32,11 @@ export enum TokenType {
   SigillessName = "SigillessName"
 }
 
-export interface Token {
+export interface InputToken {
   type: TokenType
   tokenIdx: number
   text?: string // missing for types that have subtypes
-  subTokens?: Token[]
+  subTokens?: InputToken[]
   x?: number
 }
 
@@ -48,11 +48,11 @@ export enum OprType {
   PostCircumfix
 }
 
-export interface OprToken extends Token {
+export interface OprToken extends InputToken {
   oprType: OprType
 
 }
-export type TokenLine = Token[]
+export type TokenLine = InputToken[]
 export type TokenMultiLine = TokenLine[]
 
 // identity function (default highlighter)
