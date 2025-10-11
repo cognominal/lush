@@ -33,13 +33,15 @@ We focus now on features more than configurability.
 
 See [type.ts](src/types.ts). Eventually the reference readable  representation
 of code is an augmented AST (astre) with nodes using unique id, this will
-revolutionize diff handling. The augmented AST is
+revolutionize diff handling. The augmented AST is now
 [acorn](https://github.com/acornjs/acorn). The astre will be unparsed in
 [unparse.ts](./src/unparse.ts)`. More info [here](./unparsing.md). But that's
 for [later](#more-long-term). See [.secureHash.ts](src/secureHash.ts) for
 uuids.
 
 ## Planned/Done
+
+This is the detailled plan. For the general plane, see [plan](./plan.md)
 
 Currently, we do lush as a command line editor. We want to know how far we can
 go without structural  editing. For structural editing, we should thing of an
