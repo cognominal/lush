@@ -1,9 +1,9 @@
 import * as YAML from 'js-yaml';
-import type { Token, TokenMultiLine, OprToken, TokenType, OprType } from './index.ts';
+import type { Token, TokenMultiLine, OprToken, PreAstType, OprType } from './index.ts';
 
 function mapToken(plain: any): Token {
   let t: Token = {
-    type: plain.type as TokenType,
+    type: plain.type as PreAstType,
     x: plain.x,
     tokenIdx: plain.tokenIdx,
     text: plain.text,

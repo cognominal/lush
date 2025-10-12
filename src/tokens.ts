@@ -26,7 +26,7 @@ export enum OprType {
 }
 
 
-export interface TokenType {
+export interface PreAstType {
   priority: number // type of higher priority are chosen before lower
   type: string   // type of the token
   validator?: (s: string) => boolean // true if string `s` can be token `type`
@@ -39,15 +39,15 @@ interface Opr {
   s1?: string // for multitoken operators
 }
 
-export type TokenTypename = string
+export type PreAstTypename = string
 //  + for example can be both prefix or infix so the `[Opr]`
 export type OprMapType = Map<string, Opr | [Opr]>
 // 2 separate maptyprd for the same keytype cuz hiliting is 
 // more a user thing and tokens a language thing
-export type TokenMapType = Map<TokenTypename, TokenType>
-export type HiliteMapType = Map<TokenTypename, TokenType>
+export type TokenMapType = Map<PreAstTypename, PreAstType>
+export type HiliteMapType = Map<PreAstTypename, PreAstType>
 export type HiliterType = (s: string) => string
-// export type hiliteMapType = Map<TokenType, HiliterType>
+// export type hiliteMapType = Map<PreAstType, HiliterType>
 
 export const oprMap: OprMapType = new Map()
 export const tokenMap: TokenMapType = new Map()
@@ -57,7 +57,7 @@ export function registerOpr(s: string, type: OprType, s1?: string) {
   oprMap.set(s, s1 ? { type, s } : { type, s, s1 })
 }
 
-export function registerToken(t: TokenType): void {
+export function registerToken(t: PreAstType): void {
   tokenMap.set(t.type, t)
 }
 
@@ -73,7 +73,7 @@ export function typeInit(): void {
     const typeName = (entry as any).type
     if (typeof typeName !== 'string' || !typeName) continue
     const priority = typeof (entry as any).priority === 'number' ? (entry as any).priority : 0
-    const existing: TokenType = tokenMap.get(typeName) ?? { type: typeName, priority }
+    const existing: PreAstType = tokenMap.get(typeName) ?? { type: typeName, priority }
     existing.priority = priority
     if (typeof (entry as any).validator === 'function') {
       existing.validator = (entry as any).validator
@@ -103,6 +103,6 @@ export function typeInit(): void {
   }
 }
 
-export function getHighlighter(t: TokenType): (s: string) => string {
+export function getHighlighter(t: PreAstType): (s: string) => string {
   return tokenMap.get(t.type)?.hilite ?? String;
 }

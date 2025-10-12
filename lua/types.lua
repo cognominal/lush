@@ -2,8 +2,8 @@
 
 ---@alias Highlighter fun(s:string):string
 
----@enum TokenType
-local TokenType = {
+---@enum PreAstType
+local PreAstType = {
   CommandName = "CommandName",
   Builtin = "Builtin",
   Function = "Function",
@@ -24,7 +24,7 @@ local TokenType = {
 }
 
 ---@class Token
----@field type TokenType
+---@field type PreAstType
 ---@field tokenIdx integer
 ---@field text? string
 ---@field subTokens? Token[]
@@ -45,7 +45,7 @@ local OprType = {
 ---@alias TokenMultiLine TokenLine[]
 
 local types = {
-  TokenType = TokenType,
+  PreAstType = PreAstType,
   OprType = OprType,
 }
 

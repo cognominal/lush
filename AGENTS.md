@@ -24,7 +24,7 @@ in imports. Match the prevailing two-space indentation and keep statements
 compact; there is no automated formatter, so follow the surrounding style.
 Prefer `const` for bindings, camelCase for functions and variables, and
 PascalCase for types and enums. When adding token helpers, mirror `Token` and
-`TokenType` naming from `src/types.ts` to keep autocomplete predictable.
+`PreAstType` naming from `src/types.ts` to keep autocomplete predictable.
 Markdown file have a max line length of 80 chars.
 
 ## Testing Guidelines

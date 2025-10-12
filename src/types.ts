@@ -1,11 +1,11 @@
 import chalk from "chalk";
 import type { ChildProcess } from "node:child_process";
-import { type TokenTypename } from './index.ts'
+import { type PreAstTypename } from './index.ts'
 // TBD : remove the Space token, that can be inferred from the position and
 // content of other tokens but that would necessitate special code
 
 export interface InputToken {
-  type: TokenTypename
+  type: PreAstTypename
   tokenIdx: number
   text?: string // missing for types that have subtypes
   subTokens?: InputToken[]
