@@ -57,7 +57,7 @@ describe("builtins builtin", () => {
 
   it("lists builtins alphabetically by default", () => {
     const output = invoke([], "builtins");
-    expect(output).toBe("bg\nbuiltins\ncd\ndirs\ndisown\nexit\nfg\nhtml\njobs\nkill\npopd\npushd\nsuspend\nsuspend-job\nts\nwait\n");
+    expect(output).toBe("bg\nbuiltins\ncd\nclear\ndirs\ndisown\nexit\nfg\nhistory\nhtml\njobs\nkill\nmkcd\nmkdir\npopd\npushd\nsuspend\nsuspend-job\nts\nwait\n");
   });
 
   it("prints placeholder help for -h", () => {
@@ -76,13 +76,17 @@ describe("builtins builtin", () => {
       "bg         Continue a stopped job in the background",
       "builtins   TBD",
       "cd         TBD",
+      "clear      Clear the screen",
       "dirs       TBD",
       "disown     Remove jobs from tracking",
       "exit       exit Lush shell",
       "fg         Resume a job in the foreground",
+      "history    Show recent command history",
       "html       TBD",
       "jobs       List tracked jobs",
       "kill       Send a signal to a job or pid",
+      "mkcd       Create a directory then cd into it",
+      "mkdir      Create directories recursively",
       "popd       TBD",
       "pushd      TBD",
       "suspend    Suspend the shell",
@@ -91,6 +95,193 @@ describe("builtins builtin", () => {
       "wait       Wait on the last job or provided IDs",
       "",
     ].join("\n"));
+  });
+});
+
+describe("history builtin", () => {
+  const historyBuiltin = getBuiltin("history");
+  if (!historyBuiltin) throw new Error("history builtin not registered");
+
+  const invoke = (history: HistoryEntry[], argv: string[] = []) => {
+    const chunks: string[] = [];
+    const raw = ["history", ...argv].join(" ").trim();
+    historyBuiltin({
+      argv,
+      raw,
+      write: chunk => { chunks.push(chunk); },
+      history,
+    });
+    return chunks.join("");
+  };
+
+  it("reports when no history is available", () => {
+    const output = invoke([]);
+    expect(output).toBe("history: no recorded commands\n");
+  });
+
+  it("prints numbered history entries", () => {
+    const history: HistoryEntry[] = [
+      { command: "echo hi", output: "hi\n" },
+      { command: "ls -la", output: "files\n" },
+    ];
+    const output = invoke(history);
+    expect(output).toBe("    1  echo hi\n    2  ls -la\n");
+  });
+
+  it("respects the count argument", () => {
+    const history: HistoryEntry[] = [
+      { command: "one", output: "1\n" },
+      { command: "two", output: "2\n" },
+      { command: "three", output: "3\n" },
+    ];
+    const output = invoke(history, ["2"]);
+    expect(output).toBe("    2  two\n    3  three\n");
+  });
+
+  it("validates numeric arguments", () => {
+    const output = invoke([{ command: "one", output: "1\n" }], ["nope"]);
+    expect(output).toBe("history: invalid count 'nope'\n");
+  });
+
+  it("prints help for -h", () => {
+    const output = invoke([], ["-h"]);
+    expect(output).toBe("Show recent commands; optionally pass a count.\n");
+  });
+});
+
+describe("clear builtin", () => {
+  const clearBuiltin = getBuiltin("clear");
+  if (!clearBuiltin) throw new Error("clear builtin not registered");
+
+  const invoke = (argv: string[] = []) => {
+    const chunks: string[] = [];
+    const raw = ["clear", ...argv].join(" ").trim();
+    clearBuiltin({
+      argv,
+      raw,
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    return chunks.join("");
+  };
+
+  it("emits ANSI clear sequence with no arguments", () => {
+    const output = invoke();
+    expect(output).toBe("\u001b[2J\u001b[H");
+  });
+
+  it("rejects unexpected arguments", () => {
+    const output = invoke(["extra"]);
+    expect(output).toBe("clear: unexpected arguments\n");
+  });
+
+  it("prints help for -h", () => {
+    const output = invoke(["-h"]);
+    expect(output).toBe("Clear the interactive screen.\n");
+  });
+
+  it("prints detailed help for -hh", () => {
+    const output = invoke(["-hh"]);
+    expect(output).toBe("usage: clear\nErases the visible terminal content and moves the cursor to the top-left.\n");
+  });
+});
+
+describe("mkdir and mkcd builtins", () => {
+  const mkdirBuiltin = getBuiltin("mkdir");
+  const mkcdBuiltin = getBuiltin("mkcd");
+  if (!mkdirBuiltin || !mkcdBuiltin) throw new Error("mkdir/mkcd builtins not registered");
+
+  let tmpRoot: string;
+  let previousHome: string | undefined;
+
+  const invokeMkdir = (argv: string[] = []) => {
+    const chunks: string[] = [];
+    const raw = ["mkdir", ...argv].join(" ").trim();
+    mkdirBuiltin({
+      argv,
+      raw,
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    return chunks.join("");
+  };
+
+  const invokeMkcd = (argv: string[] = []) => {
+    const chunks: string[] = [];
+    const raw = ["mkcd", ...argv].join(" ").trim();
+    mkcdBuiltin({
+      argv,
+      raw,
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    return chunks.join("");
+  };
+
+  beforeEach(() => {
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "lush-mkdir-"));
+    currentDir = tmpRoot;
+    previousHome = process.env.HOME;
+  });
+
+  afterEach(() => {
+    currentDir = realCwd;
+    if (previousHome === undefined) {
+      delete process.env.HOME;
+    } else {
+      process.env.HOME = previousHome;
+    }
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  it("prints help for mkdir -h and -hh", () => {
+    expect(invokeMkdir(["-h"])).toBe("Create directories, creating parents as needed.\n");
+    expect(invokeMkdir(["-hh"])).toBe("usage: mkdir DIR...\nCreate the directories (and parents) if they do not already exist.\n");
+  });
+
+  it("requires at least one operand", () => {
+    expect(invokeMkdir([])).toBe("mkdir: missing directory operand\n");
+  });
+
+  it("creates nested directories recursively", () => {
+    const output = invokeMkdir(["foo/bar/baz"]);
+    expect(output).toBe("");
+    expect(fs.existsSync(path.join(tmpRoot, "foo", "bar", "baz"))).toBe(true);
+  });
+
+  it("creates multiple directories when provided", () => {
+    invokeMkdir(["one", "two/three"]);
+    expect(fs.existsSync(path.join(tmpRoot, "one"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpRoot, "two", "three"))).toBe(true);
+  });
+
+  it("prints help for mkcd -h and -hh", () => {
+    expect(invokeMkcd(["-h"])).toBe("Create a directory then change into it.\n");
+    expect(invokeMkcd(["-hh"])).toBe("usage: mkcd DIR\nCreate the directory (including parents) and change into it.\n");
+  });
+
+  it("validates argument count for mkcd", () => {
+    expect(invokeMkcd([])).toBe("mkcd: missing directory operand\n");
+    expect(invokeMkcd(["one", "two"])).toBe("mkcd: too many arguments\n");
+  });
+
+  it("creates the directory and changes into it", () => {
+    const target = path.join("project", "src");
+    const output = invokeMkcd([target]);
+    const expectedPath = path.join(tmpRoot, target);
+    expect(fs.existsSync(expectedPath)).toBe(true);
+    expect(process.cwd()).toBe(expectedPath);
+    expect(output).toBe(`${expectedPath}\n`);
+  });
+
+  it("expands tilde when HOME is set", () => {
+    const homeDir = path.join(tmpRoot, "home");
+    process.env.HOME = homeDir;
+    const output = invokeMkcd(["~/demo"]);
+    const expectedPath = path.join(homeDir, "demo");
+    expect(fs.existsSync(expectedPath)).toBe(true);
+    expect(process.cwd()).toBe(expectedPath);
+    expect(output).toBe(`${expectedPath}\n`);
   });
 });
 

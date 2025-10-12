@@ -15,6 +15,14 @@ docker build -t lush .
 docker run -it --rm lush
 ```
 
+### History file location
+
+Command history persists between sessions. When `$LUSH_HISTORY` is set, Lush
+uses that absolute or tilde-expanded path. Otherwise it follows the freedesktop
+Base Directory spec: if `$XDG_STATE_HOME` is defined the history is written to
+`$XDG_STATE_HOME/lush/history.jsonl`; when it is unset, the fallback path is
+`~/.local/state/lush/history.jsonl`.
+
 ## Lush is special
 
 Work in progress, see [now](#now). See [AGENTS.md](./AGENTS.md) for genrral

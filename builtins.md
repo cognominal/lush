@@ -25,6 +25,36 @@ At this point, we want enough builtins for a demo.
   - [ ] `lush` will do the same but will display it in lush tokenized format
   - [ ] `lush` will do the same and will add it to history
 
+## Implemented builtins
+
+### history
+
+The `history` builtin prints the recorded commands with numbered entries. Pass
+an optional positive integer to limit the number of lines that are displayed.
+
+### clear
+
+The `clear` builtin erases the visible terminal content and moves the cursor
+back to the top-left corner.
+
+### mkdir
+
+The `mkdir` builtin mirrors `mkdir -p`, creating any missing parent directories.
+Pass one or more path arguments; successful runs stay quiet, just like the
+traditional command.
+
+### mkcd
+
+The `mkcd` builtin combines `mkdir -p` and `cd`: it creates the requested
+directory (and parents) before switching the shell to that path.
+
+### History persistence
+
+Command history now persists between sessions. Entries are stored as JSON lines
+in `$XDG_STATE_HOME/lush/history.jsonl` (defaulting to
+`~/.local/state/lush/history.jsonl` when the environment variable is unset).
+Set `LUSH_HISTORY` to override the location for a given run.
+
 
 
 ## TBD
@@ -36,10 +66,6 @@ Change directory
 ### pwd
 
 Print current directory
-
-### mkdir
-
-Equivalent to the command `mkdir -p` but as a builtin
 
 ### log
 

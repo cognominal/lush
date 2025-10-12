@@ -18,6 +18,9 @@ import {
   tokenizeLine,
   handleDoubleSpace as computeDoubleSpace,
   collectArgumentTexts,
+  appendHistoryEntry,
+  getHistoryFilePath,
+  loadHistoryEntries,
   registerJob,
   configureJobControl,
   getForegroundJob,
@@ -60,7 +63,8 @@ let colIdx = 0;
 // let currentTokenIdx = 0 // in current line
 // const stdout = process.stdout
 
-const history: HistoryEntry[] = [];
+const HISTORY_FILE = getHistoryFilePath();
+const history: HistoryEntry[] = loadHistoryEntries(HISTORY_FILE);
 let histIdx = -1; // -1: no history selection
 let inputLocked = false;
 
@@ -199,10 +203,10 @@ function renderMline() {
   const totalHeight = Math.max(1, displayLines.length)
 
   // 1) go to bottom
-  process.stdout.write("\x1b[999B"); // clamp to last row
+  readline.moveCursor(process.stdout, 0, 999); // clamp to last row
 
   // 2) go up to the first prompt row so the block occupies the bottom h rows
-  if (totalHeight > 1) process.stdout.write(`\x1b[${totalHeight - 1}A`);
+  if (totalHeight > 1) readline.moveCursor(process.stdout, 0, -(totalHeight - 1));
   readline.cursorTo(process.stdout, 0);
 
   // 3) draw each line, clearing to avoid leftovers
@@ -218,7 +222,7 @@ function renderMline() {
   const cursorPrefixLen = prefixLengths[cursorRow] ?? promptText.length
   const cursorCol = cursorPrefixLen + Math.min(Math.max(0, colIdx), lineLength(cursorLine))
   const up = (totalHeight - 1) - cursorRow
-  if (up > 0) process.stdout.write(`\x1b[${up}A`)
+  if (up > 0) readline.moveCursor(process.stdout, 0, -up)
   readline.cursorTo(process.stdout, cursorCol)
 }
 
@@ -319,8 +323,10 @@ function submit() {
   const first = args[0] ?? "";
 
   const recordHistory = (output: string) => {
-    history.push({ command, output });
+    const entry: HistoryEntry = { command, output };
+    history.push(entry);
     histIdx = -1;
+    appendHistoryEntry(entry, HISTORY_FILE);
   };
 
   const builtinHandler = getBuiltin(first);
@@ -647,7 +653,8 @@ function acceptLine() {
 }
 function clearScreen() {
   // Clear screen + home, prompt will redraw at bottom next
-  process.stdout.write("\x1b[2J\x1b[H");
+  readline.cursorTo(process.stdout, 0, 0);
+  readline.clearScreenDown(process.stdout);
   renderMline();
 }
 function killLineEnd() {

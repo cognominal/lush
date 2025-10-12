@@ -199,9 +199,12 @@ registerBuiltinHelp("html", "TBD");
 
 // ensure builtin modules register themselves on import
 import "./builtins/cd.ts";
+import "./builtins/clear.ts";
 import "./builtins/dirs.ts";
 import "./builtins/pushd.ts";
 import "./builtins/popd.ts";
 import "./builtins/exit.ts";
 import "./builtins/ts.ts";
 import "./builtins/jobControl.ts";
+import "./builtins/history.ts";
+import "./builtins/mkdir.ts";
