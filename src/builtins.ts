@@ -5,8 +5,8 @@ import {
   registerBuiltinHelp,
   listBuiltinHelpEntries,
   type BuiltinContext,
-  detectHelpLevel,
-} from "./index.ts";
+} from "./builtins/registry.ts";
+import { detectHelpLevel } from "./builtins/helpFlags.ts";
 
 export {
   registerBuiltin,
@@ -15,8 +15,8 @@ export {
   registerBuiltinHelp,
   getBuiltinHelp,
   listBuiltinHelpEntries,
-} from "./index.ts";
-export type { BuiltinContext, BuiltinHandler, HistoryEntry } from "./index.ts";
+} from "./builtins/registry.ts";
+export type { BuiltinContext, BuiltinHandler, HistoryEntry } from "./builtins/registry.ts";
 
 export function escapeHtml(input: string): string {
   return input

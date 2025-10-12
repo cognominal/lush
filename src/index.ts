@@ -25,3 +25,5 @@ export {
   type BuiltinHandler,
   type HistoryEntry,
 } from "./builtins/registry.ts";
+
+import "./builtins.ts";
