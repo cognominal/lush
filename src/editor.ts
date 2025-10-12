@@ -28,6 +28,13 @@ import {
   typeInit,
 } from './index.ts'
 
+enum  Mode {
+   Sh = 'sh',
+   expr = 'expr'
+}
+
+let mode: Mode = Mode.Sh
+
 /* ---------------- PATH / executables ---------------- */
 const PATH_DIRS = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
 function isExecutableOnPath(cmd: string): string | null {
@@ -111,6 +118,25 @@ function lineTokenSpans(line: TokenLine | undefined): TokenSpan[] {
   return spans
 }
 
+function currentTokenAtCursor(): InputToken | undefined {
+  const line = lines[lineIdx]
+  if (!line || line.length === 0) return undefined
+  const spans = lineTokenSpans(line)
+  if (!spans.length) return undefined
+
+  for (const span of spans) {
+    if (colIdx >= span.start && colIdx < span.end) return span.token
+  }
+
+  if (colIdx > 0) {
+    for (let i = spans.length - 1; i >= 0; i--) {
+      if (colIdx >= spans[i].end) return spans[i].token
+    }
+  }
+
+  return spans[0]?.token
+}
+
 function stripBackgroundIndicator(args: string[], background: boolean): string[] {
   if (!background) return args;
   if (!args.length) return args;
@@ -161,25 +187,31 @@ function renderPrompt() {
   })
   const h = Math.max(1, visual.length)
 
+  const currentTokenType = currentTokenAtCursor()?.type ?? '-'
+  const statusLine = chalk.dim(`mode: ${mode} curtok ${currentTokenType}`)
+  visual.push(statusLine)
+
+  const totalHeight = Math.max(1, visual.length)
+
   // 1) go to bottom
   process.stdout.write("\x1b[999B"); // clamp to last row
 
   // 2) go up to the first prompt row so the block occupies the bottom h rows
-  if (h > 1) process.stdout.write(`\x1b[${h - 1}A`);
+  if (totalHeight > 1) process.stdout.write(`\x1b[${totalHeight - 1}A`);
   readline.cursorTo(process.stdout, 0);
 
   // 3) draw each line, clearing to avoid leftovers
-  for (let i = 0; i < h; i++) {
+  for (let i = 0; i < totalHeight; i++) {
     readline.clearLine(process.stdout, 0) // clear entire line
     process.stdout.write(visual[i] ?? '')
-    if (i < h - 1) process.stdout.write('\n')
+    if (i < totalHeight - 1) process.stdout.write('\n')
   }
 
   // 4) place cursor to row/col inside the block (relative from current bottom block)
   const cursorRow = Math.min(Math.max(0, lineIdx), h - 1)
   const cursorLine = lines[cursorRow] ?? []
   const cursorCol = 2 + Math.min(Math.max(0, colIdx), lineLength(cursorLine))
-  const up = (h - 1) - cursorRow
+  const up = (totalHeight - 1) - cursorRow
   if (up > 0) process.stdout.write(`\x1b[${up}A`)
   readline.cursorTo(process.stdout, cursorCol)
 }
