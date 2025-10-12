@@ -1,5 +1,9 @@
-import { registerBuiltin, registerBuiltinHelp, type BuiltinContext } from "./registry.ts";
-import { detectHelpLevel } from "./helpFlags.ts";
+import {
+  registerBuiltin,
+  registerBuiltinHelp,
+  type BuiltinContext,
+  detectHelpLevel,
+} from "../index.ts";
 
 registerBuiltin("exit", (ctx: BuiltinContext) => {
   const helpLevel = detectHelpLevel(ctx);

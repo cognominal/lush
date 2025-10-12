@@ -1,14 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { tokenizeLine, handleDoubleSpace, collectArgumentTexts } from '../src/tokenLine.ts'
-import { TokenType } from '../src/types.ts'
 
 describe('tokenLine utilities', () => {
   it('splits text into runs preserving offsets', () => {
     const tokens = tokenizeLine('echo  foo')
     expect(tokens).toEqual([
-      { type: TokenType.AnyString, tokenIdx: 0, text: 'echo', x: 0 },
-      { type: TokenType.Space, tokenIdx: 1, text: '  ', x: 4 },
-      { type: TokenType.AnyString, tokenIdx: 2, text: 'foo', x: 6 },
+      { type: 'AnyString', tokenIdx: 0, text: 'echo', x: 0 },
+      { type: 'Space', tokenIdx: 1, text: '  ', x: 4 },
+      { type: 'AnyString', tokenIdx: 2, text: 'foo', x: 6 },
     ])
   })
 
@@ -32,7 +31,7 @@ describe('tokenLine utilities', () => {
   })
 
   it('keeps composite token text intact', () => {
-    const lines = [[{ type: TokenType.NakedString, tokenIdx: 0, text: 'foo bar', x: 0 }]]
+    const lines = [[{ type: 'NakedString', tokenIdx: 0, text: 'foo bar', x: 0 }]]
     expect(collectArgumentTexts(lines)).toEqual(['foo bar'])
   })
 })

@@ -4,8 +4,12 @@ import { Parser } from "acorn";
 import type { Options as AcornOptions } from "acorn";
 import tsPlugin from "acorn-typescript";
 import { parse as parseSvelte } from "svelte/compiler";
-import { registerBuiltin, registerBuiltinHelp, type BuiltinContext } from "./registry.ts";
-import { detectHelpLevel } from "./helpFlags.ts";
+import {
+  registerBuiltin,
+  registerBuiltinHelp,
+  type BuiltinContext,
+  detectHelpLevel,
+} from "../index.ts";
 
 const TypeScriptParser = Parser.extend(tsPlugin());
 

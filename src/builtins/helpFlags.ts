@@ -1,4 +1,4 @@
-import type { BuiltinContext } from "./registry.ts";
+import type { BuiltinContext } from "../index.ts";
 
 export type HelpLevel = "none" | "single" | "double" | "cluster";
 

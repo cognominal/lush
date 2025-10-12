@@ -1,8 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parse } from "acorn";
-import { registerBuiltin, registerBuiltinHelp, type BuiltinContext } from "./registry.ts";
-import { detectHelpLevel } from "./helpFlags.ts";
+import {
+  registerBuiltin,
+  registerBuiltinHelp,
+  type BuiltinContext,
+  detectHelpLevel,
+} from "../index.ts";
 
 registerBuiltin("ts", async (ctx: BuiltinContext) => {
   const helpLevel = detectHelpLevel(ctx);

@@ -1,7 +1,12 @@
-import { registerBuiltin, registerBuiltinHelp, type BuiltinContext } from "./registry.ts";
-import { popDirectory, pushDirectory } from "./directoryStack.ts";
-import { writeCommandError } from "./pathHelpers.ts";
-import { detectHelpLevel } from "./helpFlags.ts";
+import {
+  registerBuiltin,
+  registerBuiltinHelp,
+  type BuiltinContext,
+  popDirectory,
+  pushDirectory,
+  writeCommandError,
+  detectHelpLevel,
+} from "../index.ts";
 
 registerBuiltin("popd", (ctx: BuiltinContext) => {
   const helpLevel = detectHelpLevel(ctx);

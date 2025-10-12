@@ -1,23 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { TokenType, TokenMultiLine } from '../src/types.ts'
+import type { TokenMultiLine } from '../src/types.ts'
 import { serializeTokenMultiLine, deserializeTokenMultiLine } from '../src/yaml-serialize.ts'
 
 const sampleTokens: TokenMultiLine = [
   [
     {
-      type: TokenType.Builtin,
+      type: 'Builtin',
       x: 0,
       tokenIdx: 0,
       text: 'echo'
     },
     {
-      type: TokenType.Space,
+      type: 'Space',
       x: 4,
       tokenIdx: 1,
       text: ' '
     },
     {
-      type: TokenType.Number,
+      type: 'Number',
       x: 5,
       tokenIdx: 2,
       text: '42'

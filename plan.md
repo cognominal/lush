@@ -107,7 +107,9 @@ separated by spaces.
 So how to enter a space token and how to cycle trhu the potential types of a
 token, or multitokens sequence of characters (not separated with spaces) if the
 heuristics choose it wrong ? With conditional here postfix if the token line
-doubles as some sort of AST.
+doubles as some sort of AST. And cycling back changes it completely. This may
+break if the conditional is complex but who would cycle back the if to a naked
+string so late.
 
 ### magic strings
 

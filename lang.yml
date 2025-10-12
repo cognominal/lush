@@ -1,0 +1,39 @@
+tokenstypes:
+  - type: Space
+    priority: 0
+  - type: NakedString
+    priority: 0
+  - type: Path
+  - type: InvalidPath
+  - type: ValidPath
+  - type: Sigil
+  - type: Twigil
+  - type: SigillessName
+  - type: PromptChar
+  - type: Number
+  - type: HTML.tag
+  - type: HTML.tailwindclass
+  - type: Sh.redirect
+  - type: Sh.toExpr
+#  - type: BeSmart
+# is input buffer doubling as partial AST, how ?
+# will experiment 
+#    
+  - type: js.program
+  - type: js.ExpressionStatement
+  - type: js.Literal
+hilite:
+  CommandName: italic
+  ValidPath: green
+  InvalidPath: red
+  NakedString: bgGray.white
+magicStr:
+  shellMode:
+    '(':
+      type: Sh.toExpr
+    '>':
+      type: Sh.redirect
+      nextToken: Path
+    '>>':
+      type: Sh.redirect
+      nextToken: Path

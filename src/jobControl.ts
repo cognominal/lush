@@ -1,6 +1,6 @@
 import process from "node:process";
 import type { ChildProcess } from "node:child_process";
-import { JobStatus, type Job } from "./types.ts";
+import { JobStatus, type Job } from "./index.ts";
 
 type JobControlHooks = {
   pauseInput: () => void;
@@ -255,4 +255,3 @@ export function cleanupFinishedJobs(): void {
     }
   }
 }
-

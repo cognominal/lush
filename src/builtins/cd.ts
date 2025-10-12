@@ -1,6 +1,11 @@
-import { registerBuiltin, registerBuiltinHelp, type BuiltinContext } from "./registry.ts";
-import { detectHelpLevel } from "./helpFlags.ts";
-import { resolveDirectory, writeDirectoryError } from "./pathHelpers.ts";
+import {
+  registerBuiltin,
+  registerBuiltinHelp,
+  type BuiltinContext,
+  detectHelpLevel,
+  resolveDirectory,
+  writeDirectoryError,
+} from "../index.ts";
 
 registerBuiltin("cd", (ctx: BuiltinContext) => {
   const helpLevel = detectHelpLevel(ctx);

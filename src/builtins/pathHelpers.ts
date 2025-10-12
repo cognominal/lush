@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { BuiltinContext } from "./registry.ts";
+import type { BuiltinContext } from "../index.ts";
 
 export class DirectoryError extends Error {
   constructor(message: string) {

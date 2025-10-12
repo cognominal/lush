@@ -2,9 +2,7 @@ import {
   registerBuiltin,
   registerBuiltinHelp,
   type BuiltinContext,
-} from "./registry.ts";
-import { detectHelpLevel } from "./helpFlags.ts";
-import {
+  detectHelpLevel,
   listJobs,
   formatJob,
   findJob,
@@ -17,8 +15,8 @@ import {
   waitForAllJobs,
   disownJob,
   jobStatusLabel,
-} from "../jobControl.ts";
-import { JobStatus } from "../types.ts";
+  JobStatus,
+} from "../index.ts";
 
 function respondHelp(ctx: BuiltinContext, cluster: string, single = "TBD -h\n", double = "TBD -h -h\n") {
   const level = detectHelpLevel(ctx);
