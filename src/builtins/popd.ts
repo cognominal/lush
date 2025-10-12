@@ -4,6 +4,7 @@ import {
   type BuiltinContext,
   popDirectory,
   pushDirectory,
+  formatDirectoryStack,
   writeCommandError,
   detectHelpLevel,
 } from "../index.ts";
@@ -27,7 +28,7 @@ registerBuiltin("popd", (ctx: BuiltinContext) => {
 
   try {
     process.chdir(next);
-    ctx.write(`${process.cwd()}\n`);
+    ctx.write(`${formatDirectoryStack()}\n`);
   } catch (err) {
     pushDirectory(next);
     writeCommandError(ctx, "popd", err);

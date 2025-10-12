@@ -57,7 +57,7 @@ describe("builtins builtin", () => {
 
   it("lists builtins alphabetically by default", () => {
     const output = invoke([], "builtins");
-    expect(output).toBe("bg\nbuiltins\ncd\ndisown\nexit\nfg\nhtml\njobs\nkill\npopd\npushd\nsuspend\nsuspend-job\nts\nwait\n");
+    expect(output).toBe("bg\nbuiltins\ncd\ndirs\ndisown\nexit\nfg\nhtml\njobs\nkill\npopd\npushd\nsuspend\nsuspend-job\nts\nwait\n");
   });
 
   it("prints placeholder help for -h", () => {
@@ -76,6 +76,7 @@ describe("builtins builtin", () => {
       "bg         Continue a stopped job in the background",
       "builtins   TBD",
       "cd         TBD",
+      "dirs       TBD",
       "disown     Remove jobs from tracking",
       "exit       exit Lush shell",
       "fg         Resume a job in the foreground",
@@ -332,8 +333,10 @@ describe("cd builtin", () => {
 describe("pushd/popd builtins", () => {
   const pushdBuiltin = getBuiltin("pushd");
   const popdBuiltin = getBuiltin("popd");
+  const dirsBuiltin = getBuiltin("dirs");
   if (!pushdBuiltin) throw new Error("pushd builtin not registered");
   if (!popdBuiltin) throw new Error("popd builtin not registered");
+  if (!dirsBuiltin) throw new Error("dirs builtin not registered");
 
   const startCwd = process.cwd();
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "lush-pushd-"));
@@ -401,7 +404,7 @@ describe("pushd/popd builtins", () => {
       history: [],
     });
     expect(process.cwd()).toBe(target);
-    expect(chunks.join("")).toBe(`${target}\n`);
+    expect(chunks.join("")).toBe(`${target} ${startCwd}\n`);
     expect(getDirectoryStack()).toEqual([startCwd]);
   });
 
@@ -434,6 +437,34 @@ describe("pushd/popd builtins", () => {
       history: [],
     });
     expect(chunks.join("")).toBe("popd: directory stack empty\n");
+  });
+
+  it("lists stack with dirs builtin", () => {
+    const chunks: string[] = [];
+    dirsBuiltin({
+      argv: [],
+      raw: "dirs",
+      write: chunk => { chunks.push(chunk); },
+      history: [],
+    });
+    expect(chunks.join("")).toBe(`${startCwd}\n`);
+
+    const target = fs.mkdtempSync(path.join(tmpRoot, "dir-"));
+    pushdBuiltin({
+      argv: [target],
+      raw: `pushd ${target}`,
+      write: () => {},
+      history: [],
+    });
+
+    const afterPush: string[] = [];
+    dirsBuiltin({
+      argv: [],
+      raw: "dirs",
+      write: chunk => { afterPush.push(chunk); },
+      history: [],
+    });
+    expect(afterPush.join("")).toBe(`${target} ${startCwd}\n`);
   });
 });
 

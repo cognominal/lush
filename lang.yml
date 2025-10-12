@@ -15,6 +15,7 @@ tokenstypes:
   - type: HTML.tailwindclass
   - type: Sh.redirect
   - type: Sh.toExpr
+  -
 #  - type: BeSmart
 # is input buffer doubling as partial AST, how ?
 # will experiment 
@@ -29,6 +30,8 @@ hilite:
   NakedString: bgGray.white
 magicStr:
   shellMode:
+    '&':
+      type: Sh.background
     '(':
       type: Sh.toExpr
     '>':

@@ -4,6 +4,7 @@ import {
   type BuiltinContext,
   pushDirectory,
   popDirectory,
+  formatDirectoryStack,
   resolveDirectory,
   writeDirectoryError,
   writeCommandError,
@@ -37,7 +38,7 @@ registerBuiltin("pushd", (ctx: BuiltinContext) => {
       writeCommandError(ctx, "pushd", err);
       return;
     }
-    ctx.write(`${process.cwd()}\n`);
+    ctx.write(`${formatDirectoryStack()}\n`);
   } catch (err) {
     writeDirectoryError(ctx, err);
   }

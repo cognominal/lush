@@ -23,3 +23,8 @@ export function getDirectoryStack(): readonly string[] {
 export function hasDirectoryStack(): boolean {
   return directoryStack.length > 0;
 }
+
+export function formatDirectoryStack(currentDir: string = process.cwd()): string {
+  const entries = [currentDir, ...directoryStack.slice().reverse()];
+  return entries.join(" ");
+}

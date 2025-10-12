@@ -26,6 +26,7 @@ import {
   suspendShell,
   resumeShell,
   typeInit,
+  prompt as buildPrompt,
 } from './index.ts'
 
 enum  Mode {
@@ -176,22 +177,26 @@ function highlightFirstWord(line: TokenLine): string {
  *  3) For each visual line: clear the line, write content, newline (except last).
  *  4) Move the cursor up to the target row and set the column.
  */
-function renderPrompt() {
+function renderMline() {
   ensureLine(lineIdx)
   colIdx = Math.min(colIdx, lineLength(lines[lineIdx]))
   const activeLines = lines.length ? lines : [createLineFromText('')]
-  const visual = activeLines.map((ln, i) => {
-    const prefix = i === 0 ? "> " : "| "
+  const promptText = buildPrompt()
+  const continuationLength = Math.max(promptText.length, 2)
+  const continuationPrefix = `${' '.repeat(Math.max(continuationLength - 2, 0))}| `
+  const prefixes = activeLines.map((_, i) => i === 0 ? promptText : continuationPrefix)
+  const prefixLengths = activeLines.map((_, i) => i === 0 ? promptText.length : continuationLength)
+  const visualLines = activeLines.map((ln, i) => {
     const body = i === 0 ? highlightFirstWord(ln) : renderLine(ln)
-    return prefix + body
+    return prefixes[i] + body
   })
-  const h = Math.max(1, visual.length)
+  const h = Math.max(1, visualLines.length)
 
   const currentTokenType = currentTokenAtCursor()?.type ?? '-'
   const statusLine = chalk.dim(`mode: ${mode} curtok ${currentTokenType}`)
-  visual.push(statusLine)
+  const displayLines = [...visualLines, statusLine]
 
-  const totalHeight = Math.max(1, visual.length)
+  const totalHeight = Math.max(1, displayLines.length)
 
   // 1) go to bottom
   process.stdout.write("\x1b[999B"); // clamp to last row
@@ -203,14 +208,15 @@ function renderPrompt() {
   // 3) draw each line, clearing to avoid leftovers
   for (let i = 0; i < totalHeight; i++) {
     readline.clearLine(process.stdout, 0) // clear entire line
-    process.stdout.write(visual[i] ?? '')
+    process.stdout.write(displayLines[i] ?? '')
     if (i < totalHeight - 1) process.stdout.write('\n')
   }
 
   // 4) place cursor to row/col inside the block (relative from current bottom block)
   const cursorRow = Math.min(Math.max(0, lineIdx), h - 1)
   const cursorLine = lines[cursorRow] ?? []
-  const cursorCol = 2 + Math.min(Math.max(0, colIdx), lineLength(cursorLine))
+  const cursorPrefixLen = prefixLengths[cursorRow] ?? promptText.length
+  const cursorCol = cursorPrefixLen + Math.min(Math.max(0, colIdx), lineLength(cursorLine))
   const up = (totalHeight - 1) - cursorRow
   if (up > 0) process.stdout.write(`\x1b[${up}A`)
   readline.cursorTo(process.stdout, cursorCol)
@@ -305,7 +311,7 @@ function submit() {
 
   if (!command) {
     resetBuffer();
-    renderPrompt();
+    renderMline();
     return;
   }
 
@@ -325,7 +331,7 @@ function submit() {
       process.stderr.write(line);
       recordHistory(line);
       resetBuffer();
-      renderPrompt();
+      renderMline();
       return;
     }
     let outputBuffer = "";
@@ -344,7 +350,7 @@ function submit() {
     const finalize = () => {
       recordHistory(outputBuffer);
       resetBuffer();
-      renderPrompt();
+      renderMline();
     };
     try {
       const maybe = builtinHandler(context);
@@ -385,7 +391,7 @@ function submit() {
       if (!background) {
         process.stdout.write(" ");
         resetBuffer();
-        renderPrompt();
+        renderMline();
       }
     };
     const child = spawn(cmd, rest, { stdio: ["inherit", "pipe", "pipe"] });
@@ -411,7 +417,7 @@ function submit() {
     child.on("exit", () => finalize("exit"));
     if (background) {
       resetBuffer();
-      renderPrompt();
+      renderMline();
     }
     return;
   }
@@ -421,7 +427,7 @@ function submit() {
   process.stdout.write(output);
   recordHistory(output);
   resetBuffer();
-  renderPrompt();
+  renderMline();
 }
 
 function resetBuffer() {
@@ -446,23 +452,23 @@ function deleteOrEOF() {
     if (colIdx < text.length) {
       setLineText(lineIdx, text.slice(0, colIdx) + text.slice(colIdx + 1));
     }
-    renderPrompt();
+    renderMline();
   }
 }
-function beginningOfLine() { colIdx = 0; renderPrompt(); }
-function endOfLine() { colIdx = lineLength(lines[lineIdx]); renderPrompt(); }
-function backwardChar() { moveLeft(); renderPrompt(); }
-function forwardChar() { moveRight(); renderPrompt(); }
-function previousLineAction() { previousLine(); renderPrompt(); }
-function nextLineAction() { nextLine(); renderPrompt(); }
-function previousHistoryAction() { previousHistory(); renderPrompt(); }
-function nextHistoryAction() { nextHistory(); renderPrompt(); }
+function beginningOfLine() { colIdx = 0; renderMline(); }
+function endOfLine() { colIdx = lineLength(lines[lineIdx]); renderMline(); }
+function backwardChar() { moveLeft(); renderMline(); }
+function forwardChar() { moveRight(); renderMline(); }
+function previousLineAction() { previousLine(); renderMline(); }
+function nextLineAction() { nextLine(); renderMline(); }
+function previousHistoryAction() { previousHistory(); renderMline(); }
+function nextHistoryAction() { nextHistory(); renderMline(); }
 function deleteChar() {
   ensureLine(lineIdx)
   const text = lineText(lines[lineIdx]);
   if (colIdx < text.length) {
     setLineText(lineIdx, text.slice(0, colIdx) + text.slice(colIdx + 1));
-    renderPrompt();
+    renderMline();
   }
 }
 function backwardDeleteChar() {
@@ -480,7 +486,7 @@ function backwardDeleteChar() {
     lineIdx--;
     colIdx = prevText.length;
   }
-  renderPrompt();
+  renderMline();
 }
 function forwardToken() {
   let targetLine = lineIdx;
@@ -502,7 +508,7 @@ function forwardToken() {
       if (targetCol < span.start) {
         lineIdx = targetLine;
         colIdx = span.start;
-        renderPrompt();
+        renderMline();
         return;
       }
 
@@ -512,13 +518,13 @@ function forwardToken() {
           if (nextSpan.end > nextSpan.start) {
             lineIdx = targetLine;
             colIdx = nextSpan.start;
-            renderPrompt();
+            renderMline();
             return;
           }
         }
         lineIdx = targetLine;
         colIdx = span.end;
-        renderPrompt();
+        renderMline();
         return;
       }
     }
@@ -532,7 +538,7 @@ function forwardToken() {
   const lastLine = Math.max(0, totalLines - 1);
   lineIdx = lastLine;
   colIdx = lineLength(lines[lastLine]);
-  renderPrompt();
+  renderMline();
 }
 function backwardToken() {
   let targetLine = Math.min(lineIdx, lines.length - 1);
@@ -555,7 +561,7 @@ function backwardToken() {
       if (targetCol > span.start) {
         lineIdx = targetLine;
         colIdx = span.start;
-        renderPrompt();
+        renderMline();
         return;
       }
 
@@ -565,7 +571,7 @@ function backwardToken() {
           if (prevSpan.end > prevSpan.start) {
             lineIdx = targetLine;
             colIdx = prevSpan.start;
-            renderPrompt();
+            renderMline();
             return;
           }
         }
@@ -579,7 +585,7 @@ function backwardToken() {
 
   lineIdx = 0;
   colIdx = 0;
-  renderPrompt();
+  renderMline();
 }
 function resetEnterSequence() {
   pendingEnterCount = 0;
@@ -616,7 +622,7 @@ function insertNewline() {
   lines.splice(lineIdx + 1, 0, createLineFromText(after));
   lineIdx++;
   colIdx = 0;
-  renderPrompt();
+  renderMline();
 }
 function enterAction() {
   const now = Date.now();
@@ -642,20 +648,20 @@ function acceptLine() {
 function clearScreen() {
   // Clear screen + home, prompt will redraw at bottom next
   process.stdout.write("\x1b[2J\x1b[H");
-  renderPrompt();
+  renderMline();
 }
 function killLineEnd() {
   ensureLine(lineIdx)
   const text = lineText(lines[lineIdx]);
   setLineText(lineIdx, text.slice(0, colIdx));
-  renderPrompt();
+  renderMline();
 }
 function killLineBeginning() {
   ensureLine(lineIdx)
   const text = lineText(lines[lineIdx]);
   setLineText(lineIdx, text.slice(colIdx));
   colIdx = 0;
-  renderPrompt();
+  renderMline();
 }
 
 function interrupt() {
@@ -828,7 +834,7 @@ function insertText(text: string) {
     insertCharacter(ch);
     mutated = true;
   }
-  if (mutated) renderPrompt();
+  if (mutated) renderMline();
 }
 
 configureJobControl({
@@ -838,9 +844,9 @@ configureJobControl({
   resumeInput: () => {
     if (!inputLocked) return;
     inputLocked = false;
-    renderPrompt();
+    renderMline();
   },
-  renderPrompt,
+  renderPrompt: renderMline,
   writeOut: chunk => {
     process.stdout.write(chunk);
   },
@@ -881,7 +887,7 @@ function main() {
   process.stdin.resume();
   process.stdin.setEncoding("utf8");
   typeInit()
-  renderPrompt();
+  renderMline();
 
 }
 
