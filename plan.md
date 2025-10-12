@@ -90,6 +90,7 @@ path are possible but that would be vice.
 ## Editing susys in the multi line editor
 
 Goal : support `say foo >bar`, cycling `>bar` to a naked string
+Also  : support `say foo if true`
 
 This means generating and executing acorn as well.
 
@@ -105,7 +106,8 @@ separated by spaces.
 
 So how to enter a space token and how to cycle trhu the potential types of a
 token, or multitokens sequence of characters (not separated with spaces) if the
-heuristics choose it wrong ?
+heuristics choose it wrong ? With conditional here postfix if the token line
+doubles as some sort of AST.
 
 ### magic strings
 
@@ -113,7 +115,7 @@ Despite our nakedstring as default token, there are initial magic strings that
 override that. They are not even always simple chars like `>` and `>>` for shell
 redirection. They impose a mode or a next token. Redirection means the next
 token is a path. I create a `magicStr` field in `lang.yml` to drive an engine
-yet to be written or even fully thought.
+yet to be written or even fully thought. Also with
 
 ### double spacing in a space token
 

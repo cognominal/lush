@@ -7,11 +7,17 @@ import path from "node:path";
 import readline from "node:readline";
 import { spawn } from "node:child_process";
 import chalk from 'chalk'
-import { getBuiltin, type HistoryEntry, type BuiltinContext } from './builtins.ts'
-import { type InputToken, type TokenLine, type TokenMultiLine, getHighlighter } from './types.ts'
-// import { prompt } from './prompt.ts'
-import { tokenizeLine, handleDoubleSpace as computeDoubleSpace, collectArgumentTexts } from './tokenLine.ts'
 import {
+  getBuiltin,
+  type HistoryEntry,
+  type BuiltinContext,
+  type InputToken,
+  type TokenLine,
+  type TokenMultiLine,
+  getHighlighter,
+  tokenizeLine,
+  handleDoubleSpace as computeDoubleSpace,
+  collectArgumentTexts,
   registerJob,
   configureJobControl,
   getForegroundJob,
@@ -19,10 +25,8 @@ import {
   suspendForegroundJob,
   suspendShell,
   resumeShell,
-} from './jobControl.ts'
-process.stdin.setRawMode?.(true);
-process.stdin.resume();
-process.stdin.setEncoding("utf8");
+  typeInit,
+} from './index.ts'
 
 /* ---------------- PATH / executables ---------------- */
 const PATH_DIRS = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
@@ -838,4 +842,15 @@ process.on("SIGCONT", () => {
 
 
 // Initial draw
-renderPrompt();
+
+function main() {
+
+  process.stdin.setRawMode?.(true);
+  process.stdin.resume();
+  process.stdin.setEncoding("utf8");
+  typeInit()
+  renderPrompt();
+
+}
+
+main()

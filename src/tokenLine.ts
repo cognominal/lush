@@ -1,14 +1,17 @@
-import * as t from "./types.ts";
+import type { InputToken, TokenLine, TokenMultiLine } from "./index.ts";
 
-function tokenText(token: t.Token): string {
+const SPACE_TYPE = "Space";
+const ANY_STRING_TYPE = "AnyString";
+
+function tokenText(token: InputToken): string {
   if (typeof token.text === "string") return token.text;
   if (token.subTokens?.length) return token.subTokens.map(tokenText).join("");
   return "";
 }
 
-export function tokenizeLine(text: string): t.TokenLine {
+export function tokenizeLine(text: string): TokenLine {
   if (!text) return [];
-  const tokens: t.Token[] = [];
+  const tokens: TokenLine = [];
   let idx = 0;
   let tokenIdx = 0;
   while (idx < text.length) {
@@ -17,7 +20,7 @@ export function tokenizeLine(text: string): t.TokenLine {
     while (idx < text.length && (text[idx] === " ") === isSpace) idx++;
     const segment = text.slice(start, idx);
     tokens.push({
-      type: isSpace ? t.TokenType.Space : t.TokenType.AnyString,
+      type: isSpace ? SPACE_TYPE : ANY_STRING_TYPE,
       tokenIdx: tokenIdx++,
       text: segment,
       x: start,
@@ -43,11 +46,11 @@ export function handleDoubleSpace(text: string, cursor: number): { text: string;
   return { text: nextText, cursor: start };
 }
 
-export function collectArgumentTexts(lines: t.TokenMultiLine): string[] {
+export function collectArgumentTexts(lines: TokenMultiLine): string[] {
   const out: string[] = [];
   for (const line of lines) {
     for (const token of line) {
-      if (token.type === t.TokenType.Space) continue;
+      if (token.type === SPACE_TYPE) continue;
       const text = tokenText(token);
       if (!text) continue;
       out.push(text);
