@@ -13,6 +13,9 @@ import {
 
 const TypeScriptParser = Parser.extend(tsPlugin());
 
+const SINGLE_HELP = "Parse a JS, TS, or Svelte file and print the AST.";
+const DETAILED_HELP = "usage: ts FILE\nParses FILE (JS/TS/Svelte) and prints its AST as JSON.";
+
 registerBuiltin("ts", async (ctx: BuiltinContext) => {
   const helpLevel = detectHelpLevel(ctx);
   if (helpLevel === "cluster") {
@@ -20,11 +23,11 @@ registerBuiltin("ts", async (ctx: BuiltinContext) => {
     return;
   }
   if (helpLevel === "double") {
-    ctx.write("TBD -h -h\n");
+    ctx.write(`${DETAILED_HELP}\n`);
     return;
   }
   if (helpLevel === "single") {
-    ctx.write("TBD -h\n");
+    ctx.write(`${SINGLE_HELP}\n`);
     return;
   }
 

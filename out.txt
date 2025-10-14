@@ -1,0 +1,5 @@
+[999B[1A[1G[2K0025 /Users/cog/mine/rdln-lush> 
+[2Kmode: sh curtok -[1A[33G[999B[1A[1G[2K0025 /Users/cog/mine/rdln-lush> ls
+[2Kmode: sh curtok AnyString[1A[35G[999B[2A[1G[2K0025 /Users/cog/mine/rdln-lush> ls
+[2K                              | 
+[2Kmode: sh curtok -[1A[33G

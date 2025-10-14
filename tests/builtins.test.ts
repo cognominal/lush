@@ -60,35 +60,39 @@ describe("builtins builtin", () => {
     expect(output).toBe("bg\nbuiltins\ncd\nclear\ndirs\ndisown\nexit\nfg\nhistory\nhtml\njobs\nkill\nmkcd\nmkdir\npopd\npushd\nsuspend\nsuspend-job\nts\nwait\n");
   });
 
-  it("prints placeholder help for -h", () => {
+  it("prints summary help for -h", () => {
     const output = invoke(["-h"], "builtins -h");
-    expect(output).toBe("TBD -h\n");
+    expect(output).toBe("List builtin commands; use -hh to include descriptions.\n");
   });
 
-  it("detects repeated -h flags", () => {
+  it("prints detailed help for repeated -h flags", () => {
     const output = invoke(["-h", "-h"], "builtins -h -h");
-    expect(output).toBe("TBD -h -h\n");
+    expect(output).toBe([
+      "usage: builtins [-h|-hh]",
+      "Lists builtin commands alphabetically. With -hh also prints each description.",
+      "",
+    ].join("\n"));
   });
 
   it("shows descriptions for -hh", () => {
     const output = invoke(["-hh"], "builtins -hh");
     expect(output).toBe([
       "bg         Continue a stopped job in the background",
-      "builtins   TBD",
-      "cd         TBD",
+      "builtins   List builtin commands",
+      "cd         Change directory",
       "clear      Clear the screen",
-      "dirs       TBD",
+      "dirs       Show the directory stack",
       "disown     Remove jobs from tracking",
-      "exit       exit Lush shell",
+      "exit       Exit the shell",
       "fg         Resume a job in the foreground",
       "history    Show recent command history",
-      "html       TBD",
+      "html       Render history as HTML",
       "jobs       List tracked jobs",
       "kill       Send a signal to a job or pid",
       "mkcd       Create a directory then cd into it",
       "mkdir      Create directories recursively",
-      "popd       TBD",
-      "pushd      TBD",
+      "popd       Pop the directory stack",
+      "pushd      Push the current directory then cd",
       "suspend    Suspend the shell",
       "suspend-job Suspend the foreground job",
       "ts         Parse JS/TS/Svelte file",
@@ -304,7 +308,7 @@ describe("exit builtin", () => {
     exitSpy.mockRestore();
   });
 
-  it("prints placeholder help for -h", () => {
+  it("prints summary help for -h", () => {
     const chunks: string[] = [];
     exitBuiltin({
       argv: ["-h"],
@@ -312,11 +316,11 @@ describe("exit builtin", () => {
       write: chunk => { chunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("TBD -h\n");
+    expect(chunks.join("")).toBe("Exit the shell immediately.\n");
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
-  it("prints placeholder help for repeated -h", () => {
+  it("prints detailed help for repeated -h", () => {
     const chunks: string[] = [];
     exitBuiltin({
       argv: ["-h", "-h"],
@@ -324,7 +328,11 @@ describe("exit builtin", () => {
       write: chunk => { chunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("TBD -h -h\n");
+    expect(chunks.join("")).toBe([
+      "usage: exit",
+      "Terminates the shell with exit code 0.",
+      "",
+    ].join("\n"));
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
@@ -336,7 +344,7 @@ describe("exit builtin", () => {
       write: chunk => { chunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("exit Lush shell\n");
+    expect(chunks.join("")).toBe("Exit the shell\n");
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
@@ -375,9 +383,9 @@ describe("ts builtin", () => {
     return chunks.join("");
   };
 
-  it("prints placeholder help for -h", async () => {
+  it("prints summary help for -h", async () => {
     const output = await invoke(["-h"], "ts -h");
-    expect(output).toBe("TBD -h\n");
+    expect(output).toBe("Parse a JS, TS, or Svelte file and print the AST.\n");
   });
 
   it("describes builtin for -hh", async () => {
@@ -446,7 +454,7 @@ describe("cd builtin", () => {
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   });
 
-  it("prints placeholder help for -h", () => {
+  it("prints summary help for -h", () => {
     const chunks: string[] = [];
     cdBuiltin({
       argv: ["-h"],
@@ -454,11 +462,11 @@ describe("cd builtin", () => {
       write: chunk => { chunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("TBD -h\n");
+    expect(chunks.join("")).toBe("Change the current working directory (defaults to HOME).\n");
     expect(process.cwd()).toBe(startCwd);
   });
 
-  it("detects repeated -h", () => {
+  it("prints detailed help for repeated -h", () => {
     const chunks: string[] = [];
     cdBuiltin({
       argv: ["-h", "-h"],
@@ -466,7 +474,11 @@ describe("cd builtin", () => {
       write: chunk => { chunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("TBD -h -h\n");
+    expect(chunks.join("")).toBe([
+      "usage: cd [dir]",
+      "Changes to DIR. Without DIR uses HOME; supports ~ and relative paths.",
+      "",
+    ].join("\n"));
     expect(process.cwd()).toBe(startCwd);
   });
 
@@ -478,7 +490,11 @@ describe("cd builtin", () => {
       write: chunk => { chunks.push(chunk); },
       history: [],
     });
-    expect(chunks.join("")).toBe("TBD -h -h\n");
+    expect(chunks.join("")).toBe([
+      "usage: cd [dir]",
+      "Changes to DIR. Without DIR uses HOME; supports ~ and relative paths.",
+      "",
+    ].join("\n"));
     expect(process.cwd()).toBe(startCwd);
   });
 
@@ -543,7 +559,7 @@ describe("pushd/popd builtins", () => {
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   });
 
-  it("prints placeholder help for pushd -h and popd -h", () => {
+  it("prints help for pushd -h and popd -h", () => {
     const pushChunks: string[] = [];
     pushdBuiltin({
       argv: ["-h"],
@@ -551,7 +567,7 @@ describe("pushd/popd builtins", () => {
       write: chunk => { pushChunks.push(chunk); },
       history: [],
     });
-    expect(pushChunks.join("")).toBe("TBD -h\n");
+    expect(pushChunks.join("")).toBe("Push the current directory, then change to DIR.\n");
     expect(process.cwd()).toBe(startCwd);
 
     const popChunks: string[] = [];
@@ -561,11 +577,11 @@ describe("pushd/popd builtins", () => {
       write: chunk => { popChunks.push(chunk); },
       history: [],
     });
-    expect(popChunks.join("")).toBe("TBD -h\n");
+    expect(popChunks.join("")).toBe("Pop the directory stack and change back.\n");
     expect(process.cwd()).toBe(startCwd);
   });
 
-  it("detects repeated help flags", () => {
+  it("prints detailed help for repeated help flags", () => {
     const pushChunks: string[] = [];
     pushdBuiltin({
       argv: ["-h", "-h"],
@@ -573,7 +589,7 @@ describe("pushd/popd builtins", () => {
       write: chunk => { pushChunks.push(chunk); },
       history: [],
     });
-    expect(pushChunks.join("")).toBe("TBD -h -h\n");
+    expect(pushChunks.join("")).toBe("usage: pushd DIR\nPushes the current directory, changes to DIR, then prints the updated stack.\n");
 
     const popChunks: string[] = [];
     popdBuiltin({
@@ -582,7 +598,27 @@ describe("pushd/popd builtins", () => {
       write: chunk => { popChunks.push(chunk); },
       history: [],
     });
-    expect(popChunks.join("")).toBe("TBD -h -h\n");
+    expect(popChunks.join("")).toBe("usage: popd\nRemoves newest pushd entry, changes into it, then prints remaining stack.\n");
+  });
+
+  it("prints help for dirs", () => {
+    const single: string[] = [];
+    dirsBuiltin({
+      argv: ["-h"],
+      raw: "dirs -h",
+      write: chunk => { single.push(chunk); },
+      history: [],
+    });
+    expect(single.join("")).toBe("Show the directory stack.\n");
+
+    const detailed: string[] = [];
+    dirsBuiltin({
+      argv: ["-hh"],
+      raw: "dirs -hh",
+      write: chunk => { detailed.push(chunk); },
+      history: [],
+    });
+    expect(detailed.join("")).toBe("usage: dirs\nPrints the current directory followed by saved stack entries (if any).\n");
   });
 
   it("pushes current directory, changes to target, and records stack", () => {
@@ -674,14 +710,18 @@ describe("html builtin", () => {
     return chunks.join("");
   };
 
-  it("prints placeholder help for -h", async () => {
+  it("prints summary help for -h", async () => {
     const output = await invokeHtml([], ["-h"]);
-    expect(output).toBe("TBD -h\n");
+    expect(output).toBe("Render recent history as escaped HTML; pass a count for more entries.\n");
   });
 
-  it("prints placeholder help for -hh", async () => {
+  it("prints detailed help for -hh", async () => {
     const output = await invokeHtml([], ["-hh"]);
-    expect(output).toBe("TBD -h -h\n");
+    expect(output).toBe([
+      "usage: html [count]",
+      "Emits the latest history entry (or count entries) as escaped HTML blocks.",
+      "",
+    ].join("\n"));
   });
 
   it("renders the latest command and output as HTML", async () => {

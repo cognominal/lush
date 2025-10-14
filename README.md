@@ -15,14 +15,6 @@ docker build -t lush .
 docker run -it --rm lush
 ```
 
-### History file location
-
-Command history persists between sessions. When `$LUSH_HISTORY` is set, Lush
-uses that absolute or tilde-expanded path. Otherwise it follows the freedesktop
-Base Directory spec: if `$XDG_STATE_HOME` is defined the history is written to
-`$XDG_STATE_HOME/lush/history.jsonl`; when it is unset, the fallback path is
-`~/.local/state/lush/history.jsonl`.
-
 ## Lush is special
 
 Work in progress, see [now](#now). See [AGENTS.md](./AGENTS.md) for genrral
@@ -222,10 +214,28 @@ Not necessarily in the given order.
 TBD retrofit into tick list
 
 Eventually I need to do the shell program edition in nvim. Later in
-codemirror/monaco. But I want to deffer that. Can I do menu driven structural
+codemirror/monaco. But I want to defer that. Can I do menu driven structural
 editing using terminal-kit. Should I add my multi line input field to it? Can I
 use/create an adapter and use nvim, with what plugin, as a backend. Add Raku
 syntax in the mix.
 
 - to enable it. - to disable it. `@a+<toto>` Raku syntax. Will be simplified
   with highlighting as primary notation. `@*PATH`
+
+### LLM
+
+Lush has not been thought with LLMs in mind. Let's try.
+The source of the most popular modules (in whatever lush supported language)
+lush aware or not can be pulled and a huffmanization of the most used symbols
+can be done so as to be used as unique tokens.
+
+Maybe a serialization of astres can be done using the huffmnized symbols
+Maybe a lush aware model can be build using that scheme.
+
+### History file location
+
+Command history persists between sessions. When `$LUSH_HISTORY` is set, Lush
+uses that absolute or tilde-expanded path. Otherwise it follows the [freedesktop](https://specifications.freedesktop.org/basedir-spec/latest/)
+Base Directory spec: if `$XDG_STATE_HOME` is defined the history is written to
+`$XDG_STATE_HOME/lush/history.jsonl`; when it is unset, the fallback path is
+`~/.local/state/lush/history.jsonl`.

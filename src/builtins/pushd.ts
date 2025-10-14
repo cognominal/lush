@@ -1,24 +1,19 @@
-import {
-  registerBuiltin,
-  registerBuiltinHelp,
-  type BuiltinContext,
-  pushDirectory,
-  popDirectory,
-  formatDirectoryStack,
-  resolveDirectory,
-  writeDirectoryError,
-  writeCommandError,
-  detectHelpLevel,
-} from "../index.ts";
+import { registerBuiltin, registerBuiltinHelp, type BuiltinContext } from "./registry.ts";
+import { detectHelpLevel } from "./helpFlags.ts";
+import { pushDirectory, popDirectory, formatDirectoryStack } from "./directoryStack.ts";
+import { resolveDirectory, writeDirectoryError, writeCommandError } from "./pathHelpers.ts";
+
+const PUSHD_HELP = "Push the current directory, then change to DIR.";
+const PUSHD_HELP_LONG = "usage: pushd DIR\nPushes the current directory, changes to DIR, then prints the updated stack.";
 
 registerBuiltin("pushd", (ctx: BuiltinContext) => {
   const helpLevel = detectHelpLevel(ctx);
   if (helpLevel === "cluster" || helpLevel === "double") {
-    ctx.write("TBD -h -h\n");
+    ctx.write(`${PUSHD_HELP_LONG}\n`);
     return;
   }
   if (helpLevel === "single") {
-    ctx.write("TBD -h\n");
+    ctx.write(`${PUSHD_HELP}\n`);
     return;
   }
 
@@ -44,4 +39,4 @@ registerBuiltin("pushd", (ctx: BuiltinContext) => {
   }
 });
 
-registerBuiltinHelp("pushd", "TBD");
+registerBuiltinHelp("pushd", "Push the current directory then cd");

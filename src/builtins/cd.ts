@@ -7,14 +7,18 @@ import {
   writeDirectoryError,
 } from "../index.ts";
 
+const SINGLE_HELP = "Change the current working directory (defaults to HOME).";
+const DETAILED_HELP =
+  "usage: cd [dir]\nChanges to DIR. Without DIR uses HOME; supports ~ and relative paths.";
+
 registerBuiltin("cd", (ctx: BuiltinContext) => {
   const helpLevel = detectHelpLevel(ctx);
   if (helpLevel === "cluster" || helpLevel === "double") {
-    ctx.write("TBD -h -h\n");
+    ctx.write(`${DETAILED_HELP}\n`);
     return;
   }
   if (helpLevel === "single") {
-    ctx.write("TBD -h\n");
+    ctx.write(`${SINGLE_HELP}\n`);
     return;
   }
 
@@ -32,4 +36,4 @@ registerBuiltin("cd", (ctx: BuiltinContext) => {
   }
 });
 
-registerBuiltinHelp("cd", "TBD");
+registerBuiltinHelp("cd", "Change directory");

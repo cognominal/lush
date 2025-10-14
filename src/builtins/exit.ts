@@ -5,21 +5,24 @@ import {
   detectHelpLevel,
 } from "../index.ts";
 
+const SINGLE_HELP = "Exit the shell immediately.";
+const DETAILED_HELP = "usage: exit\nTerminates the shell with exit code 0.";
+
 registerBuiltin("exit", (ctx: BuiltinContext) => {
   const helpLevel = detectHelpLevel(ctx);
   if (helpLevel === "cluster") {
-    ctx.write("exit Lush shell\n");
+    ctx.write("Exit the shell\n");
     return;
   }
   if (helpLevel === "double") {
-    ctx.write("TBD -h -h\n");
+    ctx.write(`${DETAILED_HELP}\n`);
     return;
   }
   if (helpLevel === "single") {
-    ctx.write("TBD -h\n");
+    ctx.write(`${SINGLE_HELP}\n`);
     return;
   }
   process.exit(0);
 });
 
-registerBuiltinHelp("exit", "exit Lush shell");
+registerBuiltinHelp("exit", "Exit the shell");

@@ -32,6 +32,10 @@ const COLOR_MAP: Record<number, string> = {
   32: "#00aa00",
 };
 
+const BUILTINS_SINGLE_HELP = "List builtin commands; use -hh to include descriptions.";
+const BUILTINS_DETAILED_HELP =
+  "usage: builtins [-h|-hh]\nLists builtin commands alphabetically. With -hh also prints each description.";
+
 export function chalkHtml(input: string): string {
   let result = "";
   const colorStack: string[] = [];
@@ -125,11 +129,11 @@ function builtinListCommand(ctx: BuiltinContext) {
     return;
   }
   if (helpLevel === "double") {
-    ctx.write("TBD -h -h\n");
+    ctx.write(`${BUILTINS_DETAILED_HELP}\n`);
     return;
   }
   if (helpLevel === "single") {
-    ctx.write("TBD -h\n");
+    ctx.write(`${BUILTINS_SINGLE_HELP}\n`);
     return;
   }
   const names = listBuiltins();
@@ -138,7 +142,7 @@ function builtinListCommand(ctx: BuiltinContext) {
 }
 
 registerBuiltin("builtins", ctx => builtinListCommand(ctx));
-registerBuiltinHelp("builtins", "TBD");
+registerBuiltinHelp("builtins", "List builtin commands");
 
 function formatCommandHtml(command: string): string {
   const lines = command.split("\n");
@@ -160,14 +164,18 @@ function formatOutputHtml(output: string): string {
   return chalkHtml(output);
 }
 
+const HTML_SINGLE_HELP = "Render recent history as escaped HTML; pass a count for more entries.";
+const HTML_DETAILED_HELP =
+  "usage: html [count]\nEmits the latest history entry (or count entries) as escaped HTML blocks.";
+
 function htmlHistoryCommand(ctx: BuiltinContext) {
   const helpLevel = detectHelpLevel(ctx);
   if (helpLevel === "cluster" || helpLevel === "double") {
-    ctx.write("TBD -h -h\n");
+    ctx.write(`${HTML_DETAILED_HELP}\n`);
     return;
   }
   if (helpLevel === "single") {
-    ctx.write("TBD -h\n");
+    ctx.write(`${HTML_SINGLE_HELP}\n`);
     return;
   }
   const history = ctx.history;
@@ -195,7 +203,7 @@ function htmlHistoryCommand(ctx: BuiltinContext) {
 }
 
 registerBuiltin("html", ctx => htmlHistoryCommand(ctx));
-registerBuiltinHelp("html", "TBD");
+registerBuiltinHelp("html", "Render history as HTML");
 
 // ensure builtin modules register themselves on import
 import "./builtins/cd.ts";

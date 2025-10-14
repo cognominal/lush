@@ -76,6 +76,25 @@ const DOUBLE_SPACE_THRESHOLD_MS = 350;
 let pendingSpaceCount = 0;
 let lastSpaceAt = 0;
 
+const SHELL_START_DIR = process.cwd();
+const CTX_WRITE_LOG = path.join(SHELL_START_DIR, "ctx-write.log");
+let ctxWriteLogPrepared = false;
+
+function appendCtxWriteLog(chunk: string) {
+  try {
+    if (!ctxWriteLogPrepared) {
+      const dir = path.dirname(CTX_WRITE_LOG);
+      if (dir && dir !== "." && !fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      ctxWriteLogPrepared = true;
+    }
+    fs.appendFileSync(CTX_WRITE_LOG, chunk, "utf8");
+  } catch {
+    ctxWriteLogPrepared = false;
+  }
+}
+
 
 /* ---------- token utilities --------*/
 function createLineFromText(text: string): TokenLine {
@@ -106,6 +125,13 @@ function lineText(line: TokenLine | undefined): string {
 
 function lineLength(line: TokenLine | undefined): number {
   return lineText(line).length
+}
+
+function bufferHasContent(): boolean {
+  for (const line of lines) {
+    if (lineText(line).trim().length > 0) return true
+  }
+  return false
 }
 
 type TokenSpan = { start: number; end: number; token: InputToken }
@@ -185,7 +211,7 @@ function renderMline() {
   ensureLine(lineIdx)
   colIdx = Math.min(colIdx, lineLength(lines[lineIdx]))
   const activeLines = lines.length ? lines : [createLineFromText('')]
-  const promptText = buildPrompt()
+  const promptText = buildPrompt(history.length + 1)
   const continuationLength = Math.max(promptText.length, 2)
   const continuationPrefix = `${' '.repeat(Math.max(continuationLength - 2, 0))}| `
   const prefixes = activeLines.map((_, i) => i === 0 ? promptText : continuationPrefix)
@@ -346,6 +372,7 @@ function submit() {
       const str = chunk.toString();
       outputBuffer += str;
       process.stdout.write(str);
+      appendCtxWriteLog(str);
     };
     const context: BuiltinContext = {
       argv: args.slice(1),
@@ -640,7 +667,13 @@ function enterAction() {
   lastEnterAt = now;
 
   if (pendingEnterCount >= 2) {
+    const hasContent = bufferHasContent();
     resetEnterSequence();
+    if (!hasContent) {
+      process.stdout.write('\u0007');
+      renderMline();
+      return;
+    }
     acceptLine();
     return;
   }

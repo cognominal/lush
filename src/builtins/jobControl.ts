@@ -18,25 +18,32 @@ import {
   JobStatus,
 } from "../index.ts";
 
-function respondHelp(ctx: BuiltinContext, cluster: string, single = "TBD -h\n", double = "TBD -h -h\n") {
+function respondHelp(ctx: BuiltinContext, cluster: string, single?: string, double?: string) {
   const level = detectHelpLevel(ctx);
   if (level === "cluster") {
     ctx.write(`${cluster}\n`);
     return true;
   }
   if (level === "double") {
-    ctx.write(double);
+    const message = double ?? single ?? `${cluster}\n`;
+    ctx.write(message.endsWith("\n") ? message : `${message}\n`);
     return true;
   }
   if (level === "single") {
-    ctx.write(single);
+    const message = single ?? `${cluster}\n`;
+    ctx.write(message.endsWith("\n") ? message : `${message}\n`);
     return true;
   }
   return false;
 }
 
 registerBuiltin("jobs", ctx => {
-  if (respondHelp(ctx, "List active jobs")) return;
+  if (respondHelp(
+    ctx,
+    "List active jobs",
+    "List active jobs tracked by the shell.\n",
+    "usage: jobs\nPrints the job table with IDs, status, and command text.\n"
+  )) return;
   const entries = listJobs();
   if (!entries.length) {
     ctx.write("jobs: no active jobs\n");
@@ -49,7 +56,12 @@ registerBuiltin("jobs", ctx => {
 registerBuiltinHelp("jobs", "List tracked jobs");
 
 registerBuiltin("fg", async ctx => {
-  if (respondHelp(ctx, "Resume the most recent job in the foreground")) return;
+  if (respondHelp(
+    ctx,
+    "Resume the most recent job in the foreground",
+    "Resume a job in the foreground.\n",
+    "usage: fg [%job]\nBrings the most recent (or specified) job to the foreground.\n"
+  )) return;
   const spec = ctx.argv[0];
   const job = findJob(spec);
   if (!job) {
@@ -68,7 +80,12 @@ registerBuiltin("fg", async ctx => {
 registerBuiltinHelp("fg", "Resume a job in the foreground");
 
 registerBuiltin("bg", ctx => {
-  if (respondHelp(ctx, "Resume a stopped job in the background")) return;
+  if (respondHelp(
+    ctx,
+    "Resume a stopped job in the background",
+    "Resume a stopped job in the background.\n",
+    "usage: bg [%job]\nRestarts a stopped job in the background without foregrounding it.\n"
+  )) return;
   const spec = ctx.argv[0];
   const job = findJob(spec);
   if (!job) {
@@ -86,7 +103,12 @@ registerBuiltin("bg", ctx => {
 registerBuiltinHelp("bg", "Continue a stopped job in the background");
 
 registerBuiltin("kill", ctx => {
-  if (respondHelp(ctx, "Send a signal to a job or pid")) return;
+  if (respondHelp(
+    ctx,
+    "Send a signal to a job or pid",
+    "Send a signal to a job or process.\n",
+    "usage: kill [-SIGNAL] target...\nAccepts job specs (%1) or PIDs; defaults to SIGTERM.\n"
+  )) return;
   if (!ctx.argv.length) {
     ctx.write("kill: missing target\n");
     return;
@@ -133,7 +155,12 @@ registerBuiltin("kill", ctx => {
 registerBuiltinHelp("kill", "Send a signal to a job or pid");
 
 registerBuiltin("wait", async ctx => {
-  if (respondHelp(ctx, "Wait for jobs to finish")) return;
+  if (respondHelp(
+    ctx,
+    "Wait for jobs to finish",
+    "Wait for jobs to finish.\n",
+    "usage: wait [%job...]\nWithout args waits for all jobs; otherwise waits for each spec.\n"
+  )) return;
   if (!ctx.argv.length) {
     await waitForAllJobs();
     return;
@@ -151,14 +178,24 @@ registerBuiltin("wait", async ctx => {
 registerBuiltinHelp("wait", "Wait on the last job or provided IDs");
 
 registerBuiltin("suspend", ctx => {
-  if (respondHelp(ctx, "Suspend the shell")) return;
+  if (respondHelp(
+    ctx,
+    "Suspend the shell",
+    "Suspend the shell process.\n",
+    "usage: suspend\nPauses the shell (usually via SIGTSTP) until resumed.\n"
+  )) return;
   suspendShell();
 });
 
 registerBuiltinHelp("suspend", "Suspend the shell");
 
 registerBuiltin("disown", ctx => {
-  if (respondHelp(ctx, "Forget about a job")) return;
+  if (respondHelp(
+    ctx,
+    "Forget about a job",
+    "Remove jobs from tracking.\n",
+    "usage: disown %job...\nStops tracking the listed jobs so they will not be waited on.\n"
+  )) return;
   if (!ctx.argv.length) {
     ctx.write("disown: missing job spec\n");
     return;
@@ -176,7 +213,12 @@ registerBuiltin("disown", ctx => {
 registerBuiltinHelp("disown", "Remove jobs from tracking");
 
 registerBuiltin("suspend-job", ctx => {
-  if (respondHelp(ctx, "Suspend the current foreground job")) return;
+  if (respondHelp(
+    ctx,
+    "Suspend the current foreground job",
+    "Suspend the current foreground job.\n",
+    "usage: suspend-job\nSends SIGTSTP to the active foreground job if one exists.\n"
+  )) return;
   if (!suspendForegroundJob()) {
     ctx.write("suspend-job: no foreground job\n");
   }
