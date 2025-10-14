@@ -2,10 +2,11 @@
 `src/` contains the TypeScript sources for the interactive shell. The `main`
 function in `src/editor.ts` is the CLI entry point configured in `package.json`;
 support modules such as `history.ts`, `unparse.ts`, `secureHash.ts`, and
-`yaml-serialize.ts` cover persistence and AST translation. Shared types sit in
-`src/types.ts`—update them centrally before reusing shapes. Tests live in
-`tests/` and mirror source filenames. Supporting docs and prompt variants stay
-in `builtins.md`, `keybindings.md`, `prompt.md`, and the `prompts/` directory.
+`yaml-serialize.ts` cover persistence and AST translation. Token shapes live in
+`src/tokenLine.ts`, and job metadata types sit in `src/jobControl.ts`—update
+them centrally before reusing shapes. Tests live in `tests/` and mirror source
+filenames. Supporting docs and prompt variants stay in `builtins.md`,
+`keybindings.md`, `prompt.md`, and the `prompts/` directory.
 
 ## Build, Test, and Development Commands
 
@@ -24,7 +25,7 @@ in imports. Match the prevailing two-space indentation and keep statements
 compact; there is no automated formatter, so follow the surrounding style.
 Prefer `const` for bindings, camelCase for functions and variables, and
 PascalCase for types and enums. When adding token helpers, mirror `Token` and
-`PreAstType` naming from `src/types.ts` to keep autocomplete predictable.
+`PreAstType` naming from `src/tokenLine.ts` to keep autocomplete predictable.
 Markdown file have a max line length of 80 chars.
 
 ## Testing Guidelines

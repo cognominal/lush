@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { TokenLine, TokenMultiLine } from "./types.ts";
+import type { TokenLine, TokenMultiLine } from "./tokenLine.ts";
 import type { HistoryEntry } from "./builtins/registry.ts";
 
 export function historyLineAsString(entry: TokenLine): string {

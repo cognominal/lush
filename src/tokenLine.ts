@@ -1,4 +1,15 @@
-import type { InputToken, TokenLine, TokenMultiLine } from "./index.ts";
+import type { PreAstTypename } from "./tokens.ts";
+
+export interface InputToken {
+  type: PreAstTypename;
+  tokenIdx: number;
+  text?: string; // missing for types that have subtypes
+  subTokens?: InputToken[];
+  x?: number;
+}
+
+export type TokenLine = InputToken[];
+export type TokenMultiLine = TokenLine[];
 
 const SPACE_TYPE = "Space";
 const ANY_STRING_TYPE = "AnyString";

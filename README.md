@@ -32,9 +32,10 @@ TBD html, to demonstrate the shell in action. I have a builtin for that
 See [naked strings](#naked-strings-cool-again-no-poisoned-apple) (TBD). We focus
 now on features more than configurability.
 
-See [type.ts](src/types.ts). Eventually the reference readable representation of
-code is an augmented AST (astre) with nodes using unique id, this will
-revolutionize diff handling. The augmented AST is now
+Token shapes live in [src/tokenLine.ts](src/tokenLine.ts). Eventually the
+reference readable representation of code is an augmented AST (astre) with
+nodes using unique id, this will revolutionize diff handling. The augmented AST
+is now
 [acorn](https://github.com/acornjs/acorn). The astre will be unparsed in
 [unparse.ts](./src/unparse.ts)`. More info [here](./unparsing.md). But that's
 for [later](#more-long-term). See [.secureHash.ts](src/secureHash.ts) for uuids.

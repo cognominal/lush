@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { TokenMultiLine } from '../src/types.ts'
+import type { TokenMultiLine } from '../src/tokenLine.ts'
 import { serializeTokenMultiLine, deserializeTokenMultiLine } from '../src/yaml-serialize.ts'
 
 const sampleTokens: TokenMultiLine = [

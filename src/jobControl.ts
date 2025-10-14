@@ -1,6 +1,25 @@
 import process from "node:process";
 import type { ChildProcess } from "node:child_process";
-import { JobStatus, type Job } from "./index.ts";
+
+export enum JobStatus {
+  Running = "running",
+  Stopped = "stopped",
+  Done = "done",
+}
+
+export interface Job {
+  id: number;
+  pid: number | null;
+  command: string;
+  process: ChildProcess;
+  status: JobStatus;
+  background: boolean;
+  startedAt: Date;
+  exitCode: number | null;
+  signal: NodeJS.Signals | null;
+  stoppedAt?: Date;
+  disowned?: boolean;
+}
 
 type JobControlHooks = {
   pauseInput: () => void;

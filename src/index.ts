@@ -1,4 +1,3 @@
-export * from "./types.ts";
 export * from "./helpers.ts";
 export * from "./tokens.ts";
 export * from "./tokenLine.ts";
