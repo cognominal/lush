@@ -14,6 +14,7 @@ import {
   type InputToken,
   type TokenLine,
   type TokenMultiLine,
+  type PreAstType,
   getHighlighter,
   tokenizeLine,
   collectArgumentTexts,
@@ -29,6 +30,7 @@ import {
   resumeShell,
   typeInit,
   prompt as buildPrompt,
+  tokenMap,
 } from './index.ts'
 import {
   insertTextIntoTokenLine,
@@ -171,6 +173,23 @@ function currentTokenAtCursor(): InputToken | undefined {
   }
 
   return spans[0]?.token
+}
+
+function sortedValidTokens(token: InputToken | undefined): PreAstType[] {
+  if (!token) return [];
+  const text = tokenText(token);
+  if (!text) return [];
+
+  const entries = Array.from(tokenMap.values());
+  const matches = entries.filter(entry => {
+    if (typeof entry?.validator !== "function") return false;
+    try {
+      return entry.validator(text);
+    } catch {
+      return false;
+    }
+  });
+  return matches.sort((a, b) => b.priority - a.priority);
 }
 
 function stripBackgroundIndicator(args: string[], background: boolean): string[] {
@@ -682,8 +701,32 @@ function insertCharacter(ch: string) {
   colIdx += ch.length;
 }
 function handleDoubleSpaceEvent() {
-  ensureLine(lineIdx)
-  const line = lines[lineIdx];
+  const line = ensureLine(lineIdx);
+  const currentToken = currentTokenAtCursor();
+  if (currentToken && currentToken.type === "Space") {
+    const tokenIndex = line.indexOf(currentToken);
+    let previousToken: InputToken | undefined;
+    if (tokenIndex > 0) {
+      for (let i = tokenIndex - 1; i >= 0; i--) {
+        const candidate = line[i];
+        if (!candidate) continue;
+        if (candidate.type !== "Space") {
+          previousToken = candidate;
+          break;
+        }
+      }
+    }
+    if (previousToken) {
+      const candidates = sortedValidTokens(previousToken);
+      if (candidates.length) {
+        const currentType = previousToken.type;
+        const currentIdx = candidates.findIndex(candidate => candidate.type === currentType);
+        const next = currentIdx >= 0 ? candidates[(currentIdx + 1) % candidates.length] : candidates[0];
+        previousToken.type = next.type;
+        normalizeTokenLineInPlace(line);
+      }
+    }
+  }
   const current = lineText(line);
   const prevChar = colIdx > 0 ? current[colIdx - 1] : undefined;
   if (prevChar !== ' ') {

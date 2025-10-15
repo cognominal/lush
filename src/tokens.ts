@@ -53,6 +53,29 @@ export const oprMap: OprMapType = new Map()
 export const tokenMap: TokenMapType = new Map()
 // export const hiliteMap: HiliteMapType = new Map()
 
+const DECIMAL_DIGITS = "(?:[0-9](?:_?[0-9])*)";
+const DECIMAL_INTEGER = "(?:0|[1-9](?:_?[0-9])*)";
+const DECIMAL_EXPONENT = `(?:[eE][+-]?${DECIMAL_DIGITS})`;
+const DECIMAL_LITERAL = `(?:${DECIMAL_INTEGER}\\.(?:${DECIMAL_DIGITS})?${DECIMAL_EXPONENT}?|\\.${DECIMAL_DIGITS}${DECIMAL_EXPONENT}?|${DECIMAL_INTEGER}${DECIMAL_EXPONENT}?)`;
+const HEX_DIGITS = "(?:[0-9a-fA-F](?:_?[0-9a-fA-F])*)";
+const HEX_LITERAL = `0[xX]${HEX_DIGITS}`;
+const OCT_DIGITS = "(?:[0-7](?:_?[0-7])*)";
+const OCT_LITERAL = `0[oO]${OCT_DIGITS}`;
+const BIN_DIGITS = "(?:[01](?:_?[01])*)";
+const BIN_LITERAL = `0[bB]${BIN_DIGITS}`;
+const DECIMAL_BIGINT = `(?:0|[1-9](?:_?[0-9])*)n`;
+const HEX_BIGINT = `${HEX_LITERAL}n`;
+const OCT_BIGINT = `${OCT_LITERAL}n`;
+const BIN_BIGINT = `${BIN_LITERAL}n`;
+const NUMBER_LITERAL_PATTERN = new RegExp(
+  `^(?:${DECIMAL_LITERAL}|${HEX_LITERAL}|${OCT_LITERAL}|${BIN_LITERAL}|${DECIMAL_BIGINT}|${HEX_BIGINT}|${OCT_BIGINT}|${BIN_BIGINT})$`
+);
+
+function isValidJsNumberLiteral(value: string): boolean {
+  if (typeof value !== "string" || value.length === 0) return false;
+  return NUMBER_LITERAL_PATTERN.test(value);
+}
+
 export function registerOpr(s: string, type: OprType, s1?: string) {
   oprMap.set(s, s1 ? { type, s } : { type, s, s1 })
 }
@@ -80,6 +103,10 @@ export function typeInit(): void {
     }
     tokenMap.set(typeName, existing)
   }
+
+  const numberToken = tokenMap.get("Number") ?? { type: "Number", priority: 0 }
+  numberToken.validator = isValidJsNumberLiteral
+  tokenMap.set("Number", numberToken)
 
   const hiliteEntries = (data as any)?.hilite
   if (!hiliteEntries || typeof hiliteEntries !== 'object') return
