@@ -51,13 +51,17 @@ describe("history persistence", () => {
     expect(Array.isArray(parsed)).toBe(true);
     const docs = parsed as Array<Record<string, unknown>>;
     expect(docs).toHaveLength(2);
-    const [first, second] = docs;
+    const first = docs[0];
+    const second = docs[1];
+    if (!first || !second) {
+      throw new Error("expected two history documents");
+    }
     expect(typeof first.input).toBe("string");
     expect(first.output).toBe("hi\n");
     expect(first.cwd).toBe(process.cwd());
     expect(typeof second.input).toBe("string");
-    const firstTokens = deserializeHistory(first.input as string);
-    const secondTokens = deserializeHistory(second.input as string);
+    const firstTokens = deserializeHistory(String(first.input));
+    const secondTokens = deserializeHistory(String(second.input));
     expect(tokenMultiLineToCommand(firstTokens)).toBe("echo hi");
     expect(tokenMultiLineToCommand(secondTokens)).toBe("pwd");
   });

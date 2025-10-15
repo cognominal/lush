@@ -11,7 +11,7 @@ REpresentation with their reliance on
 [UUIDs](https://en.wikipedia.org/wiki/Unique_identifier) for symbols and nodes.
 Simple example of the benefit of the couple susy/astre : renaming a symbol is
 just updating the mapping between its uuid and its name, even if downside it
-affects susys all over the place. But that's the point, susya are just the
+affects susys all over the place. But that's the point, susys are just the
 serialization of astres. This interelation between Astres and Susys is designed
 to foster a greater flexibility of languages and programs, a goal of Larry Wall
 who took natural languages as an inspiration. Susys conventions can be personal,

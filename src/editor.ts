@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import chalk from 'chalk'
 import {
   getBuiltin,
@@ -124,6 +124,10 @@ function ensureLine(index: number): TokenLine {
   return lines[index]
 }
 
+function getLine(index: number): TokenLine {
+  return ensureLine(index);
+}
+
 function lineText(line: TokenLine | undefined): string {
   if (!line || line.length === 0) return ''
   const segments: string[] = line.map(tokenText)
@@ -143,8 +147,8 @@ function bufferHasContent(): boolean {
 
 type TokenSpan = { start: number; end: number; token: InputToken }
 
-function lineTokenSpans(line: TokenLine | undefined): TokenSpan[] {
-  if (!line || line.length === 0) return []
+function lineTokenSpans(line: TokenLine): TokenSpan[] {
+  if (line.length === 0) return []
   const spans: TokenSpan[] = []
   let offset = 0
   for (const token of line) {
@@ -157,8 +161,8 @@ function lineTokenSpans(line: TokenLine | undefined): TokenSpan[] {
 }
 
 function currentTokenAtCursor(): InputToken | undefined {
-  const line = lines[lineIdx]
-  if (!line || line.length === 0) return undefined
+  const line = ensureLine(lineIdx)
+  if (line.length === 0) return undefined
   const spans = lineTokenSpans(line)
   if (!spans.length) return undefined
 
@@ -168,11 +172,14 @@ function currentTokenAtCursor(): InputToken | undefined {
 
   if (colIdx > 0) {
     for (let i = spans.length - 1; i >= 0; i--) {
-      if (colIdx >= spans[i].end) return spans[i].token
+      const span = spans[i];
+      if (!span) continue;
+      if (colIdx >= span.end) return span.token
     }
   }
 
-  return spans[0]?.token
+  const firstSpan = spans[0]
+  return firstSpan ? firstSpan.token : undefined
 }
 
 function sortedValidTokens(token: InputToken | undefined): PreAstType[] {
@@ -239,7 +246,8 @@ function clearPromptBlock() {
 function renderLine(line: TokenLine | undefined): string {
   if (!line || line.length === 0) return ''
   const renderedTokens: string[] = line.map((tk: InputToken) => {
-    const highlighter = getHighlighter(tk.type)
+    const tokenType = tk.type ?? "AnyString";
+    const highlighter = getHighlighter(tokenType);
     return highlighter(tokenText(tk))
   })
   return renderedTokens.join('')
@@ -249,7 +257,7 @@ function highlightFirstWord(line: TokenLine): string {
   const rendered = renderLine(line)
   const m = lineText(line).match(/^(\S+)(.*)$/)
   if (!m) return rendered
-  const [, first, rest] = m
+  const [, first = "", rest = ""] = m
   return isExecutableOnPath(first) ? `${chalk.red(first)}${rest}` : rendered
 }
 
@@ -263,8 +271,8 @@ function highlightFirstWord(line: TokenLine): string {
  *  4) Move the cursor up to the target row and set the column.
  */
 function renderMline() {
-  ensureLine(lineIdx)
-  colIdx = Math.min(colIdx, lineLength(lines[lineIdx]))
+  const currentLine = getLine(lineIdx);
+  colIdx = Math.min(colIdx, lineLength(currentLine))
   const activeLines = promptActiveLines()
   const promptText = buildPrompt(history.length + 1)
   const continuationLength = Math.max(promptText.length, 2)
@@ -299,7 +307,7 @@ function renderMline() {
 
   // 4) place cursor to row/col inside the block (relative from current bottom block)
   const cursorRow = Math.min(Math.max(0, lineIdx), h - 1)
-  const cursorLine = lines[cursorRow] ?? []
+  const cursorLine = activeLines[cursorRow] ?? []
   const cursorPrefixLen = prefixLengths[cursorRow] ?? promptText.length
   const cursorCol = cursorPrefixLen + Math.min(Math.max(0, colIdx), lineLength(cursorLine))
   const up = (totalHeight - 1) - cursorRow
@@ -314,6 +322,10 @@ function loadHistory(idx: number) {
     return;
   }
   const entry = history[idx];
+  if (!entry) {
+    resetBuffer();
+    return;
+  }
   const parts = entry.command.split('\n');
   const mappedLines: TokenMultiLine = parts.map(createLineFromText);
   lines = mappedLines;
@@ -321,13 +333,15 @@ function loadHistory(idx: number) {
     lines = [createLineFromText('')]
   }
   lineIdx = Math.min(lineIdx, lines.length - 1);
-  colIdx = Math.min(colIdx, lineLength(lines[lineIdx]));
+  colIdx = Math.min(colIdx, lineLength(getLine(lineIdx)));
   histIdx = idx;
 }
 
 function currentFirstWord(): string {
-  const m = lineText(lines[0]).match(/^(\S+)/);
-  return m ? m[1] : "";
+  const firstLine = lines[0] ?? createLineFromText('');
+  const m = lineText(firstLine).match(/^(\S+)/);
+  if (!m) return "";
+  return m[1] ?? "";
 }
 
 /* ---------------- Movement helpers ---------------- */
@@ -335,11 +349,11 @@ function moveLeft() {
   if (colIdx > 0) { colIdx--; return }
   if (lineIdx > 0) {
     lineIdx--
-    colIdx = lineLength(lines[lineIdx])
+    colIdx = lineLength(getLine(lineIdx))
   }
 }
 function moveRight() {
-  if (colIdx < lineLength(lines[lineIdx])) { colIdx++; return }
+  if (colIdx < lineLength(getLine(lineIdx))) { colIdx++; return }
   if (lineIdx < lines.length - 1) {
     lineIdx++
     colIdx = 0
@@ -348,13 +362,13 @@ function moveRight() {
 function previousLine() {
   if (lineIdx > 0) {
     lineIdx--
-    colIdx = Math.min(colIdx, lineLength(lines[lineIdx]))
+    colIdx = Math.min(colIdx, lineLength(getLine(lineIdx)))
   }
 }
 function nextLine() {
   if (lineIdx < lines.length - 1) {
     lineIdx++
-    colIdx = Math.min(colIdx, lineLength(lines[lineIdx]))
+    colIdx = Math.min(colIdx, lineLength(getLine(lineIdx)))
   }
 }
 function previousHistory() {
@@ -476,6 +490,12 @@ function submit() {
 
   if (exe) {
     const [cmd, ...rest] = args;
+    if (typeof cmd !== "string" || cmd.length === 0) {
+      recordHistory("failed to execute: empty command\n");
+      resetBuffer();
+      renderPromptAfterOutput();
+      return;
+    }
     let outputBuffer = "";
     let finalized = false;
     const finalize = (cause: "exit" | "error") => {
@@ -490,19 +510,19 @@ function submit() {
         renderPromptAfterOutput();
       }
     };
-    const child = spawn(cmd, rest, { stdio: ["inherit", "pipe", "pipe"] });
+    const child = spawn(cmd, rest, { stdio: ["inherit", "pipe", "pipe"] }) as ChildProcess;
     registerJob(command, child, background);
-    child.stdout?.on("data", chunk => {
+    child.stdout?.on("data", (chunk: Buffer) => {
       const str = chunk.toString();
       process.stdout.write(str);
       outputBuffer += str;
     });
-    child.stderr?.on("data", chunk => {
+    child.stderr?.on("data", (chunk: Buffer) => {
       const str = chunk.toString();
       process.stderr.write(str);
       outputBuffer += str;
     });
-    child.on("error", err => {
+    child.on("error", (err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err);
       const line = `failed to execute ${cmd}: ${msg}
 `;
@@ -542,20 +562,23 @@ function exitEditor() {
   process.exit(130); // typical for SIGINT
 }
 function deleteOrEOF() {
-  if (lines.length === 1 && lineLength(lines[0]) === 0) {
-    process.stdout.write("\n");
-    process.exit(0);
-  } else {
-    ensureLine(lineIdx)
-    const line = lines[lineIdx];
-    if (colIdx < lineLength(line)) {
-      deleteRangeFromTokenLine(line, colIdx, colIdx + 1);
+  if (lines.length === 1) {
+    const onlyLine = getLine(0);
+    if (lineLength(onlyLine) === 0) {
+      process.stdout.write("\n");
+      process.exit(0);
+      return;
     }
-    renderMline();
   }
+
+  const line = getLine(lineIdx);
+  if (colIdx < lineLength(line)) {
+    deleteRangeFromTokenLine(line, colIdx, colIdx + 1);
+  }
+  renderMline();
 }
 function beginningOfLine() { colIdx = 0; renderMline(); }
-function endOfLine() { colIdx = lineLength(lines[lineIdx]); renderMline(); }
+function endOfLine() { colIdx = lineLength(getLine(lineIdx)); renderMline(); }
 function backwardChar() { moveLeft(); renderMline(); }
 function forwardChar() { moveRight(); renderMline(); }
 function previousLineAction() { previousLine(); renderMline(); }
@@ -563,8 +586,7 @@ function nextLineAction() { nextLine(); renderMline(); }
 function previousHistoryAction() { previousHistory(); renderMline(); }
 function nextHistoryAction() { nextHistory(); renderMline(); }
 function deleteChar() {
-  ensureLine(lineIdx)
-  const line = lines[lineIdx];
+  const line = ensureLine(lineIdx);
   if (colIdx < lineLength(line)) {
     deleteRangeFromTokenLine(line, colIdx, colIdx + 1);
     renderMline();
@@ -573,12 +595,13 @@ function deleteChar() {
 function backwardDeleteChar() {
   ensureLine(lineIdx)
   if (colIdx > 0) {
-    deleteRangeFromTokenLine(lines[lineIdx], colIdx - 1, colIdx);
+    const line = ensureLine(lineIdx);
+    deleteRangeFromTokenLine(line, colIdx - 1, colIdx);
     colIdx--;
   } else if (lineIdx > 0) {
     const prevLineIdx = lineIdx - 1;
-    const prevLine = lines[prevLineIdx];
-    const currentLine = lines[lineIdx];
+    const prevLine = ensureLine(prevLineIdx);
+    const currentLine = ensureLine(lineIdx);
     const prevLength = lineLength(prevLine);
     prevLine.push(...currentLine);
     lines.splice(lineIdx, 1);
@@ -593,7 +616,7 @@ function forwardToken() {
   let targetCol = colIdx;
   const totalLines = lines.length;
   while (targetLine < totalLines) {
-    const spans = lineTokenSpans(lines[targetLine]);
+    const spans = lineTokenSpans(ensureLine(targetLine));
     if (!spans.length) {
       targetLine++;
       targetCol = -1;
@@ -602,6 +625,7 @@ function forwardToken() {
 
     for (let i = 0; i < spans.length; i++) {
       const span = spans[i];
+      if (!span) continue;
       const spanLength = span.end - span.start;
       if (spanLength === 0) continue;
 
@@ -615,6 +639,7 @@ function forwardToken() {
       if (targetCol >= span.start && targetCol < span.end) {
         for (let j = i + 1; j < spans.length; j++) {
           const nextSpan = spans[j];
+          if (!nextSpan) continue;
           if (nextSpan.end > nextSpan.start) {
             lineIdx = targetLine;
             colIdx = nextSpan.start;
@@ -637,25 +662,27 @@ function forwardToken() {
 
   const lastLine = Math.max(0, totalLines - 1);
   lineIdx = lastLine;
-  colIdx = lineLength(lines[lastLine]);
+  colIdx = lineLength(getLine(lastLine));
   renderMline();
 }
 function backwardToken() {
   let targetLine = Math.min(lineIdx, lines.length - 1);
   let targetCol = colIdx;
   while (targetLine >= 0) {
-    const spans = lineTokenSpans(lines[targetLine]);
+    const spans = lineTokenSpans(getLine(targetLine));
     if (!spans.length) {
       targetLine--;
-      targetCol = targetLine >= 0 ? lineLength(lines[targetLine]) + 1 : 0;
+      targetCol = targetLine >= 0 ? lineLength(getLine(targetLine)) + 1 : 0;
       continue;
     }
     const lastSpan = spans[spans.length - 1];
+    if (!lastSpan) break;
     const lineLen = lastSpan.end;
     if (targetCol > lineLen) targetCol = lineLen;
 
     for (let i = spans.length - 1; i >= 0; i--) {
       const span = spans[i];
+      if (!span) continue;
       if (span.end === span.start) continue;
 
       if (targetCol > span.start) {
@@ -668,6 +695,7 @@ function backwardToken() {
       if (targetCol === span.start) {
         for (let j = i - 1; j >= 0; j--) {
           const prevSpan = spans[j];
+          if (!prevSpan) continue;
           if (prevSpan.end > prevSpan.start) {
             lineIdx = targetLine;
             colIdx = prevSpan.start;
@@ -680,7 +708,7 @@ function backwardToken() {
     }
 
     targetLine--;
-    targetCol = targetLine >= 0 ? lineLength(lines[targetLine]) + 1 : 0;
+    targetCol = targetLine >= 0 ? lineLength(getLine(targetLine)) + 1 : 0;
   }
 
   lineIdx = 0;
@@ -696,8 +724,8 @@ function resetSpaceSequence() {
   lastSpaceAt = 0;
 }
 function insertCharacter(ch: string) {
-  ensureLine(lineIdx)
-  insertTextIntoTokenLine(lines[lineIdx], colIdx, ch);
+  const line = getLine(lineIdx);
+  insertTextIntoTokenLine(line, colIdx, ch);
   colIdx += ch.length;
 }
 function handleDoubleSpaceEvent() {
@@ -721,8 +749,11 @@ function handleDoubleSpaceEvent() {
       if (candidates.length) {
         const currentType = previousToken.type;
         const currentIdx = candidates.findIndex(candidate => candidate.type === currentType);
-        const next = currentIdx >= 0 ? candidates[(currentIdx + 1) % candidates.length] : candidates[0];
-        previousToken.type = next.type;
+        const nextIndex = currentIdx >= 0 ? (currentIdx + 1) % candidates.length : 0;
+        const next = candidates[nextIndex];
+        if (next) {
+          previousToken.type = next.type;
+        }
         normalizeTokenLineInPlace(line);
       }
     }
@@ -741,8 +772,8 @@ function handleDoubleSpaceEvent() {
 }
 function insertNewline() {
   resetSpaceSequence()
-  ensureLine(lineIdx)
-  const tail = splitTokenLineAt(lines[lineIdx], colIdx);
+  const line = getLine(lineIdx);
+  const tail = splitTokenLineAt(line, colIdx);
   lines.splice(lineIdx + 1, 0, tail);
   lineIdx++;
   colIdx = 0;
@@ -782,8 +813,7 @@ function clearScreen() {
   renderMline();
 }
 function killLineEnd() {
-  ensureLine(lineIdx)
-  const line = lines[lineIdx];
+  const line = getLine(lineIdx);
   const length = lineLength(line);
   if (colIdx < length) {
     deleteRangeFromTokenLine(line, colIdx, length);
@@ -791,9 +821,9 @@ function killLineEnd() {
   renderMline();
 }
 function killLineBeginning() {
-  ensureLine(lineIdx)
   if (colIdx > 0) {
-    deleteRangeFromTokenLine(lines[lineIdx], 0, colIdx);
+    const line = getLine(lineIdx);
+    deleteRangeFromTokenLine(line, 0, colIdx);
     colIdx = 0;
   }
   renderMline();
@@ -925,7 +955,9 @@ function tokenize(input: string): EventToken[] {
     let matched = false;
     for (const seq of SEQS_DESC) {
       if (input.startsWith(seq, i)) {
-        out.push({ kind: "key", name: SEQ_TO_NAME[seq] });
+        const name = SEQ_TO_NAME[seq];
+        if (!name) continue;
+        out.push({ kind: "key", name });
         i += seq.length;
         matched = true;
         break;

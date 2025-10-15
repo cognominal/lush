@@ -15,11 +15,13 @@ export function isStrVariable(input: string): boolean {
   if (typeof input !== "string" || input.length === 0) return false;
   let idx = 0;
 
-  if (SIGIL_SET.has(input[idx])) {
+  const firstChar = input[idx];
+  if (firstChar && SIGIL_SET.has(firstChar)) {
     idx += 1;
   }
 
-  if (input[idx] === "*") {
+  const secondChar = input[idx];
+  if (secondChar === "*") {
     idx += 1;
   }
 
@@ -27,6 +29,7 @@ export function isStrVariable(input: string): boolean {
 
   for (; idx < input.length; idx++) {
     const ch = input[idx];
+    if (!ch) return false;
     const code = ch.charCodeAt(0);
     const isDigit = code >= 48 && code <= 57;
     const isUpper = code >= 65 && code <= 90;
@@ -42,10 +45,12 @@ export function isStrVariable(input: string): boolean {
 export function stripSigils(input: string): string {
   if (!isStrVariable(input)) return input;
   let idx = 0;
-  if (SIGIL_SET.has(input[idx])) {
+  const first = input[idx];
+  if (first && SIGIL_SET.has(first)) {
     idx += 1;
   }
-  if (input[idx] === "*") {
+  const second = input[idx];
+  if (second === "*") {
     idx += 1;
   }
   return input.slice(idx);

@@ -44,6 +44,9 @@ export function chalkHtml(input: string): string {
   let i = 0;
   while (i < input.length) {
     const ch = input[i];
+    if (ch === undefined) {
+      break;
+    }
     if (ch === "\u001b" && input[i + 1] === "[") {
       const end = input.indexOf("m", i);
       if (end === -1) {
@@ -150,7 +153,9 @@ function formatCommandHtml(command: string): string {
     if (idx === 0) {
       const match = line.match(/^(\S+)(.*)$/);
       if (match) {
-        const [, first, rest] = match;
+        const [, firstRaw, restRaw] = match;
+        const first = firstRaw ?? "";
+        const rest = restRaw ?? "";
         return chalkHtml(chalk.italic(first)) + escapeHtml(rest);
       }
     }
@@ -186,7 +191,7 @@ function htmlHistoryCommand(ctx: BuiltinContext) {
 
   const countArg = ctx.argv[0];
   let count = 1;
-  if (countArg) {
+  if (typeof countArg === "string" && countArg.trim().length > 0) {
     const parsed = Number.parseInt(countArg, 10);
     if (Number.isFinite(parsed) && parsed > 0) {
       count = parsed;

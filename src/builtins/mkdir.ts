@@ -92,6 +92,10 @@ registerBuiltin("mkcd", (ctx: BuiltinContext) => {
   }
 
   const arg = ctx.argv[0];
+  if (typeof arg !== "string") {
+    ctx.write("mkcd: missing directory operand\n");
+    return;
+  }
 
   try {
     const target = resolveTarget(arg, "mkcd");

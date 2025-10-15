@@ -130,6 +130,6 @@ export function typeInit(): void {
   }
 }
 
-export function getHighlighter(t: PreAstType): (s: string) => string {
-  return tokenMap.get(t.type)?.hilite ?? String;
+export function getHighlighter(type: PreAstTypename): (s: string) => string {
+  return tokenMap.get(type)?.hilite ?? String;
 }

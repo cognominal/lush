@@ -44,6 +44,7 @@ function locateLeaf(tokens: InputToken[], column: number, preferPreviousOnBounda
   let cursor = 0;
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
+    if (!token) continue;
     const length = tokenLength(token);
     const start = cursor;
     const end = cursor + length;
@@ -70,6 +71,10 @@ function mergeAdjacentTokens(tokens: InputToken[]): void {
   for (let i = 0; i < tokens.length - 1;) {
     const current = tokens[i];
     const next = tokens[i + 1];
+    if (!current || !next) {
+      i++;
+      continue;
+    }
     if (current.subTokens && current.subTokens.length > 0) {
       i++;
       continue;
@@ -92,6 +97,7 @@ function mergeAdjacentTokens(tokens: InputToken[]): void {
 function pruneEmptyTokens(tokens: InputToken[]): void {
   for (let i = tokens.length - 1; i >= 0; i--) {
     const token = tokens[i];
+    if (!token) continue;
     if (token.subTokens && token.subTokens.length > 0) {
       pruneEmptyTokens(token.subTokens);
       if (token.subTokens.length === 0) {
@@ -116,6 +122,7 @@ function updateTokenPositions(tokens: InputToken[], offset = 0): number {
   let cursor = offset;
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
+    if (!token) continue;
     token.tokenIdx = i;
     token.x = cursor;
     if (token.subTokens && token.subTokens.length > 0) {
@@ -271,6 +278,10 @@ function splitTokenLine(line: TokenLine, column: number): TokenLine {
   let offset = 0;
   for (let i = 0; i < line.length;) {
     const token = line[i];
+    if (!token) {
+      i++;
+      continue;
+    }
     const length = tokenLength(token);
     const start = offset;
     const end = offset + length;
@@ -295,7 +306,12 @@ function splitTokenLine(line: TokenLine, column: number): TokenLine {
       right.push(newToken);
     }
     while (i < line.length) {
-      right.push(line[i]);
+      const following = line[i];
+      if (!following) {
+        i++;
+        continue;
+      }
+      right.push(following);
       line.splice(i, 1);
     }
     break;

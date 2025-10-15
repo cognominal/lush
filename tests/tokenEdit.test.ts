@@ -85,6 +85,7 @@ describe('tokenEdit utilities', () => {
     insertTextIntoTokenLine(line, 4, 'b')
 
     const parent = line[0]
+    if (!parent) throw new Error("expected parent token");
     expect(parent.tokenIdx).toBe(0)
     expect(parent.x).toBe(0)
     expect(parent.subTokens).toBeDefined()

@@ -26,7 +26,7 @@ compact; there is no automated formatter, so follow the surrounding style.
 Prefer `const` for bindings, camelCase for functions and variables, and
 PascalCase for types and enums. When adding token helpers, mirror `Token` and
 `PreAstType` naming from `src/tokenLine.ts` to keep autocomplete predictable.
-Markdown file have a max line length of 80 chars.
+Markdown file have a max line length of 80 chars. Ts should be type error free.
 
 ## Testing Guidelines
 
