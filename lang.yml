@@ -15,7 +15,7 @@ tokenstypes:
   - type: HTML.tailwindclass
   - type: Sh.redirect
   - type: Sh.toExpr
-  -
+  - type: Sh.builtin
 #  - type: BeSmart
 # is input buffer doubling as partial AST, how ?
 # will experiment 

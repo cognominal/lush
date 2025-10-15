@@ -2,8 +2,18 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import * as YAML from "js-yaml";
 
-const { appendHistoryEntry, loadHistoryEntries, getHistoryFilePath } = await import("../src/history.ts");
+const {
+  appendHistoryEntry,
+  loadHistoryEntries,
+  getHistoryFilePath,
+  deserializeHistory,
+  serializeHistory,
+  tokenMultiLineToCommand,
+} = await import("../src/history.ts");
+const { tokenizeLine } = await import("../src/tokenLine.ts");
+const { getBuiltin } = await import("../src/index.ts");
 
 describe("history persistence", () => {
   const tmpPrefix = path.join(os.tmpdir(), "lush-history-");
@@ -27,25 +37,63 @@ describe("history persistence", () => {
 
   it("appends entries and reads them back in order", () => {
     appendHistoryEntry({ command: "echo hi", output: "hi\n" }, historyFile);
-    appendHistoryEntry({ command: "ls", output: "file\n" }, historyFile);
+    appendHistoryEntry({ command: "pwd", output: `${process.cwd()}\n` }, historyFile);
 
     const entries = loadHistoryEntries(historyFile);
-    expect(entries).toEqual([
+    expect(entries).toHaveLength(2);
+    expect(entries).toMatchObject([
       { command: "echo hi", output: "hi\n" },
-      { command: "ls", output: "file\n" },
+      { command: "pwd", output: `${process.cwd()}\n` },
     ]);
+
+    const raw = fs.readFileSync(historyFile, "utf8");
+    const parsed = YAML.load(raw);
+    expect(Array.isArray(parsed)).toBe(true);
+    const docs = parsed as Array<Record<string, unknown>>;
+    expect(docs).toHaveLength(2);
+    const [first, second] = docs;
+    expect(typeof first.input).toBe("string");
+    expect(first.output).toBe("hi\n");
+    expect(first.cwd).toBe(process.cwd());
+    expect(typeof second.input).toBe("string");
+    const firstTokens = deserializeHistory(first.input as string);
+    const secondTokens = deserializeHistory(second.input as string);
+    expect(tokenMultiLineToCommand(firstTokens)).toBe("echo hi");
+    expect(tokenMultiLineToCommand(secondTokens)).toBe("pwd");
   });
 
-  it("ignores malformed lines", () => {
-    const lines = [
-      "not a json line",
-      JSON.stringify({ command: "ok", output: "yes\n" }),
-      JSON.stringify({ command: 42, output: "nope" }),
+  it("skips malformed YAML entries", () => {
+    const tokens = [tokenizeLine("ok")];
+    const validEntry = {
+      input: serializeHistory(tokens),
+      output: "yes\n",
+      cwd: process.cwd(),
+    };
+    const malformedDoc = [
+      { output: "missing input", cwd: "/tmp" },
+      validEntry,
     ];
-    fs.writeFileSync(historyFile, `${lines.join("\n")}\n`, "utf8");
+    const yaml = YAML.dump(malformedDoc, { indent: 2, noRefs: true, lineWidth: 80 });
+    fs.writeFileSync(historyFile, yaml, "utf8");
 
     const entries = loadHistoryEntries(historyFile);
-    expect(entries).toEqual([{ command: "ok", output: "yes\n" }]);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ command: "ok", output: "yes\n" });
+  });
+
+  it("invokes the pwd builtin to capture the current directory", async () => {
+    const handler = getBuiltin("pwd");
+    if (!handler) throw new Error("pwd builtin not registered");
+
+    const writes: string[] = [];
+    await handler({
+      argv: [],
+      raw: "pwd",
+      history: [],
+      write: chunk => writes.push(chunk),
+    });
+
+    expect(writes.join("")).toBe(`${process.cwd()}\n`);
   });
 });
 
@@ -87,7 +135,7 @@ describe("custom history path resolution", () => {
       delete process.env.LUSH_HISTORY;
       process.env.XDG_STATE_HOME = stateDir;
       const resolved = getHistoryFilePath();
-      expect(resolved).toBe(path.join(stateDir, "lush", "history.jsonl"));
+      expect(resolved).toBe(path.join(stateDir, "lush", "history.yaml"));
     } finally {
       restoreEnv(prevHistory);
       restoreEnv(prevState);
@@ -105,7 +153,7 @@ describe("custom history path resolution", () => {
       delete process.env.LUSH_HISTORY;
       delete process.env.XDG_STATE_HOME;
       const resolved = getHistoryFilePath();
-      expect(resolved).toBe(path.join(home, ".local", "state", "lush", "history.jsonl"));
+      expect(resolved).toBe(path.join(home, ".local", "state", "lush", "history.yaml"));
     } finally {
       restoreEnv(prevHistory);
       restoreEnv(prevState);

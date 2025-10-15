@@ -40,6 +40,17 @@ is now
 [unparse.ts](./src/unparse.ts)`. More info [here](./unparsing.md). But that's
 for [later](#more-long-term). See [.secureHash.ts](src/secureHash.ts) for uuids.
 
+## Token editing
+
+The multiline editor mutates existing `InputToken`s instead of rebuilding a
+line from plain text. Every insert, delete, or split updates the token (and any
+`subTokens`) that owns the edited character, then re-computes the `tokenIdx`
+and `x` fields for the affected containers. Parent tokens with `subTokens`
+keep their `text` undefined; their surface text is derived from the
+concatenation of child token texts. This behaviour lives in
+[src/tokenEdit.ts](src/tokenEdit.ts) and lets highlighting and token metadata
+survive incremental edits without re-tokenizing the entire line.
+
 ## Planned/Done
 
 This is the detailled plan. For the general plane, see [plan](./plan.md)
@@ -238,5 +249,5 @@ Maybe a lush aware model can be build using that scheme.
 Command history persists between sessions. When `$LUSH_HISTORY` is set, Lush
 uses that absolute or tilde-expanded path. Otherwise it follows the [freedesktop](https://specifications.freedesktop.org/basedir-spec/latest/)
 Base Directory spec: if `$XDG_STATE_HOME` is defined the history is written to
-`$XDG_STATE_HOME/lush/history.jsonl`; when it is unset, the fallback path is
-`~/.local/state/lush/history.jsonl`.
+`$XDG_STATE_HOME/lush/history.yaml`; when it is unset, the fallback path is
+`~/.local/state/lush/history.yaml`.

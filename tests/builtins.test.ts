@@ -57,7 +57,7 @@ describe("builtins builtin", () => {
 
   it("lists builtins alphabetically by default", () => {
     const output = invoke([], "builtins");
-    expect(output).toBe("bg\nbuiltins\ncd\nclear\ndirs\ndisown\nexit\nfg\nhistory\nhtml\njobs\nkill\nmkcd\nmkdir\npopd\npushd\nsuspend\nsuspend-job\nts\nwait\n");
+    expect(output).toBe("bg\nbuiltins\ncd\nclear\ndirs\ndisown\nexit\nfg\nhistory\nhtml\njobs\nkill\nmkcd\nmkdir\npopd\npushd\npwd\nsuspend\nsuspend-job\nts\nwait\n");
   });
 
   it("prints summary help for -h", () => {
@@ -93,6 +93,7 @@ describe("builtins builtin", () => {
       "mkdir      Create directories recursively",
       "popd       Pop the directory stack",
       "pushd      Push the current directory then cd",
+      "pwd        Print the current working directory",
       "suspend    Suspend the shell",
       "suspend-job Suspend the foreground job",
       "ts         Parse JS/TS/Svelte file",

@@ -216,3 +216,4 @@ import "./builtins/ts.ts";
 import "./builtins/jobControl.ts";
 import "./builtins/history.ts";
 import "./builtins/mkdir.ts";
+import "./builtins/pwd.ts";

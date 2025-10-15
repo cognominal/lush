@@ -16,7 +16,6 @@ import {
   type TokenMultiLine,
   getHighlighter,
   tokenizeLine,
-  handleDoubleSpace as computeDoubleSpace,
   collectArgumentTexts,
   appendHistoryEntry,
   getHistoryFilePath,
@@ -31,6 +30,12 @@ import {
   typeInit,
   prompt as buildPrompt,
 } from './index.ts'
+import {
+  insertTextIntoTokenLine,
+  deleteRangeFromTokenLine,
+  splitTokenLineAt,
+  normalizeTokenLineInPlace,
+} from './tokenEdit.ts'
 
 enum  Mode {
    Sh = 'sh',
@@ -103,7 +108,10 @@ function createLineFromText(text: string): TokenLine {
 
 function tokenText(token: InputToken): string {
   if (typeof token.text === 'string') return token.text
-  if (token.subTokens?.length) return token.subTokens.map(tokenText).join('')
+  if (token.subTokens?.length) {
+    const pieces: string[] = token.subTokens.map(tokenText)
+    return pieces.join('')
+  }
   return ''
 }
 
@@ -114,13 +122,10 @@ function ensureLine(index: number): TokenLine {
   return lines[index]
 }
 
-function setLineText(index: number, text: string) {
-  lines[index] = createLineFromText(text)
-}
-
 function lineText(line: TokenLine | undefined): string {
   if (!line || line.length === 0) return ''
-  return line.map(tokenText).join('')
+  const segments: string[] = line.map(tokenText)
+  return segments.join('')
 }
 
 function lineLength(line: TokenLine | undefined): number {
@@ -180,14 +185,45 @@ function stripBackgroundIndicator(args: string[], background: boolean): string[]
 
 
 /* ---------------- Rendering (zsh-style: always at bottom) ---------------- */
+
+function promptActiveLines(): TokenMultiLine {
+  return lines.length ? lines : [createLineFromText("")];
+}
+
+function computePromptHeight(): number {
+  const active = promptActiveLines();
+  return Math.max(1, active.length + 1); // +1 for status line
+}
+
+function renderPromptAfterOutput() {
+  const height = computePromptHeight();
+  if (height > 1) {
+    process.stdout.write("\n".repeat(height - 1));
+  }
+  renderMline();
+}
+
+function clearPromptBlock() {
+  const height = computePromptHeight();
+  readline.moveCursor(process.stdout, 0, 999);
+  if (height > 1) readline.moveCursor(process.stdout, 0, -(height - 1));
+  readline.cursorTo(process.stdout, 0);
+  for (let i = 0; i < height; i++) {
+    readline.clearLine(process.stdout, 0);
+    if (i < height - 1) {
+      readline.moveCursor(process.stdout, 0, 1);
+      readline.cursorTo(process.stdout, 0);
+    }
+  }
+}
+
 function renderLine(line: TokenLine | undefined): string {
   if (!line || line.length === 0) return ''
-  return line
-    .map((tk: InputToken) => {
-      const highlighter = getHighlighter(tk.type)
-      return highlighter(tokenText(tk))
-    })
-    .join('')
+  const renderedTokens: string[] = line.map((tk: InputToken) => {
+    const highlighter = getHighlighter(tk.type)
+    return highlighter(tokenText(tk))
+  })
+  return renderedTokens.join('')
 }
 
 function highlightFirstWord(line: TokenLine): string {
@@ -210,13 +246,13 @@ function highlightFirstWord(line: TokenLine): string {
 function renderMline() {
   ensureLine(lineIdx)
   colIdx = Math.min(colIdx, lineLength(lines[lineIdx]))
-  const activeLines = lines.length ? lines : [createLineFromText('')]
+  const activeLines = promptActiveLines()
   const promptText = buildPrompt(history.length + 1)
   const continuationLength = Math.max(promptText.length, 2)
   const continuationPrefix = `${' '.repeat(Math.max(continuationLength - 2, 0))}| `
-  const prefixes = activeLines.map((_, i) => i === 0 ? promptText : continuationPrefix)
-  const prefixLengths = activeLines.map((_, i) => i === 0 ? promptText.length : continuationLength)
-  const visualLines = activeLines.map((ln, i) => {
+  const prefixes: string[] = activeLines.map((_, i) => i === 0 ? promptText : continuationPrefix)
+  const prefixLengths: number[] = activeLines.map((_, i) => i === 0 ? promptText.length : continuationLength)
+  const visualLines: string[] = activeLines.map((ln, i) => {
     const body = i === 0 ? highlightFirstWord(ln) : renderLine(ln)
     return prefixes[i] + body
   })
@@ -224,7 +260,7 @@ function renderMline() {
 
   const currentTokenType = currentTokenAtCursor()?.type ?? '-'
   const statusLine = chalk.dim(`mode: ${mode} curtok ${currentTokenType}`)
-  const displayLines = [...visualLines, statusLine]
+  const displayLines: string[] = [...visualLines, statusLine]
 
   const totalHeight = Math.max(1, displayLines.length)
 
@@ -260,7 +296,8 @@ function loadHistory(idx: number) {
   }
   const entry = history[idx];
   const parts = entry.command.split('\n');
-  lines = parts.map(createLineFromText);
+  const mappedLines: TokenMultiLine = parts.map(createLineFromText);
+  lines = mappedLines;
   if (!lines.length) {
     lines = [createLineFromText('')]
   }
@@ -332,11 +369,13 @@ function detectBackground(input: string): { command: string; background: boolean
 
 function submit() {
   ensureLine(lineIdx)
-  const joined = lines.map(lineText).join(' ');
+  const lineSegments: string[] = lines.map(lineText);
+  const joined = lineSegments.join(' ');
   const rawArgs = collectArgumentTexts(lines);
   const { command, background } = detectBackground(joined);
 
   // Push the prompt block up by starting a new line before output
+  clearPromptBlock();
   process.stdout.write("\n");
 
   if (!command) {
@@ -363,7 +402,7 @@ function submit() {
       process.stderr.write(line);
       recordHistory(line);
       resetBuffer();
-      renderMline();
+      renderPromptAfterOutput();
       return;
     }
     let outputBuffer = "";
@@ -382,8 +421,11 @@ function submit() {
     };
     const finalize = () => {
       recordHistory(outputBuffer);
+      if (outputBuffer && !outputBuffer.endsWith("\n")) {
+        process.stdout.write("\n");
+      }
       resetBuffer();
-      renderMline();
+      renderPromptAfterOutput();
     };
     try {
       const maybe = builtinHandler(context);
@@ -422,9 +464,11 @@ function submit() {
       finalized = true;
       recordHistory(outputBuffer);
       if (!background) {
-        process.stdout.write(" ");
+        if (outputBuffer && !outputBuffer.endsWith("\n")) {
+          process.stdout.write("\n");
+        }
         resetBuffer();
-        renderMline();
+        renderPromptAfterOutput();
       }
     };
     const child = spawn(cmd, rest, { stdio: ["inherit", "pipe", "pipe"] });
@@ -459,8 +503,11 @@ function submit() {
 `;
   process.stdout.write(output);
   recordHistory(output);
+  if (output && !output.endsWith("\n")) {
+    process.stdout.write("\n");
+  }
   resetBuffer();
-  renderMline();
+  renderPromptAfterOutput();
 }
 
 function resetBuffer() {
@@ -481,9 +528,9 @@ function deleteOrEOF() {
     process.exit(0);
   } else {
     ensureLine(lineIdx)
-    const text = lineText(lines[lineIdx]);
-    if (colIdx < text.length) {
-      setLineText(lineIdx, text.slice(0, colIdx) + text.slice(colIdx + 1));
+    const line = lines[lineIdx];
+    if (colIdx < lineLength(line)) {
+      deleteRangeFromTokenLine(line, colIdx, colIdx + 1);
     }
     renderMline();
   }
@@ -498,26 +545,27 @@ function previousHistoryAction() { previousHistory(); renderMline(); }
 function nextHistoryAction() { nextHistory(); renderMline(); }
 function deleteChar() {
   ensureLine(lineIdx)
-  const text = lineText(lines[lineIdx]);
-  if (colIdx < text.length) {
-    setLineText(lineIdx, text.slice(0, colIdx) + text.slice(colIdx + 1));
+  const line = lines[lineIdx];
+  if (colIdx < lineLength(line)) {
+    deleteRangeFromTokenLine(line, colIdx, colIdx + 1);
     renderMline();
   }
 }
 function backwardDeleteChar() {
   ensureLine(lineIdx)
-  const ln = lineText(lines[lineIdx]);
   if (colIdx > 0) {
-    setLineText(lineIdx, ln.slice(0, colIdx - 1) + ln.slice(colIdx));
+    deleteRangeFromTokenLine(lines[lineIdx], colIdx - 1, colIdx);
     colIdx--;
   } else if (lineIdx > 0) {
     const prevLineIdx = lineIdx - 1;
-    const prevText = lineText(lines[prevLineIdx]);
-    const merged = prevText + ln;
-    setLineText(prevLineIdx, merged);
+    const prevLine = lines[prevLineIdx];
+    const currentLine = lines[lineIdx];
+    const prevLength = lineLength(prevLine);
+    prevLine.push(...currentLine);
     lines.splice(lineIdx, 1);
-    lineIdx--;
-    colIdx = prevText.length;
+    normalizeTokenLineInPlace(prevLine);
+    lineIdx = prevLineIdx;
+    colIdx = prevLength;
   }
   renderMline();
 }
@@ -630,29 +678,29 @@ function resetSpaceSequence() {
 }
 function insertCharacter(ch: string) {
   ensureLine(lineIdx)
-  const current = lineText(lines[lineIdx]);
-  const before = current.slice(0, colIdx);
-  const after = current.slice(colIdx);
-  const next = before + ch + after;
-  setLineText(lineIdx, next);
+  insertTextIntoTokenLine(lines[lineIdx], colIdx, ch);
   colIdx += ch.length;
 }
 function handleDoubleSpaceEvent() {
   ensureLine(lineIdx)
-  const current = lineText(lines[lineIdx]);
-  const { text, cursor } = computeDoubleSpace(current, colIdx);
-  setLineText(lineIdx, text);
+  const line = lines[lineIdx];
+  const current = lineText(line);
+  const prevChar = colIdx > 0 ? current[colIdx - 1] : undefined;
+  if (prevChar !== ' ') {
+    insertTextIntoTokenLine(line, colIdx, ' ');
+    colIdx += 1;
+  }
+  const updated = lineText(line);
+  let cursor = colIdx;
+  while (cursor > 0 && updated[cursor - 1] === ' ') cursor--;
   colIdx = cursor;
   resetSpaceSequence();
 }
 function insertNewline() {
   resetSpaceSequence()
   ensureLine(lineIdx)
-  const current = lineText(lines[lineIdx]);
-  const before = current.slice(0, colIdx);
-  const after = current.slice(colIdx);
-  setLineText(lineIdx, before);
-  lines.splice(lineIdx + 1, 0, createLineFromText(after));
+  const tail = splitTokenLineAt(lines[lineIdx], colIdx);
+  lines.splice(lineIdx + 1, 0, tail);
   lineIdx++;
   colIdx = 0;
   renderMline();
@@ -692,15 +740,19 @@ function clearScreen() {
 }
 function killLineEnd() {
   ensureLine(lineIdx)
-  const text = lineText(lines[lineIdx]);
-  setLineText(lineIdx, text.slice(0, colIdx));
+  const line = lines[lineIdx];
+  const length = lineLength(line);
+  if (colIdx < length) {
+    deleteRangeFromTokenLine(line, colIdx, length);
+  }
   renderMline();
 }
 function killLineBeginning() {
   ensureLine(lineIdx)
-  const text = lineText(lines[lineIdx]);
-  setLineText(lineIdx, text.slice(colIdx));
-  colIdx = 0;
+  if (colIdx > 0) {
+    deleteRangeFromTokenLine(lines[lineIdx], 0, colIdx);
+    colIdx = 0;
+  }
   renderMline();
 }
 

@@ -11,7 +11,11 @@ import {
   detectHelpLevel,
 } from "../index.ts";
 
-const TypeScriptParser = Parser.extend(tsPlugin());
+type ParserExtender = (BaseParser: typeof Parser) => typeof Parser;
+// acorn-typescript ships a narrow type tied to its internal parser class.
+// Cast the plugin to the generic extender signature acorn expects.
+const typeScriptExtender = tsPlugin() as unknown as ParserExtender;
+const TypeScriptParser = Parser.extend(typeScriptExtender);
 
 const SINGLE_HELP = "Parse a JS, TS, or Svelte file and print the AST.";
 const DETAILED_HELP = "usage: ts FILE\nParses FILE (JS/TS/Svelte) and prints its AST as JSON.";

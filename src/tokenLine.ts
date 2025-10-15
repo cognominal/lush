@@ -14,7 +14,7 @@ export type TokenMultiLine = TokenLine[];
 const SPACE_TYPE = "Space";
 const ANY_STRING_TYPE = "AnyString";
 
-function tokenText(token: InputToken): string {
+export function tokenText(token: InputToken): string {
   if (typeof token.text === "string") return token.text;
   if (token.subTokens?.length) return token.subTokens.map(tokenText).join("");
   return "";
@@ -24,7 +24,6 @@ export function tokenizeLine(text: string): TokenLine {
   if (!text) return [];
   const tokens: TokenLine = [];
   let idx = 0;
-  let tokenIdx = 0;
   while (idx < text.length) {
     const start = idx;
     const isSpace = text[start] === " ";
@@ -32,7 +31,7 @@ export function tokenizeLine(text: string): TokenLine {
     const segment = text.slice(start, idx);
     tokens.push({
       type: isSpace ? SPACE_TYPE : ANY_STRING_TYPE,
-      tokenIdx: tokenIdx++,
+      tokenIdx: tokens.length,
       text: segment,
       x: start,
     });

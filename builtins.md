@@ -60,10 +60,10 @@ directory (and parents) before switching the shell to that path.
 
 ### History persistence
 
-Command history now persists between sessions. Entries are stored as JSON lines
-in `$XDG_STATE_HOME/lush/history.jsonl` (defaulting to
-`~/.local/state/lush/history.jsonl` when the environment variable is unset).
-Set `LUSH_HISTORY` to override the location for a given run.
+Command history now persists between sessions. Entries are stored as YAML in
+`$XDG_STATE_HOME/lush/history.yaml` (defaulting to
+`~/.local/state/lush/history.yaml` when the environment variable is unset). Set
+`LUSH_HISTORY` to override the location for a given run.
 
 ## TBD
 

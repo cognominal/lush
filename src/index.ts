@@ -1,6 +1,11 @@
 export * from "./helpers.ts";
 export * from "./tokens.ts";
-export * from "./tokenLine.ts";
+export {
+  tokenizeLine,
+  handleDoubleSpace,
+  collectArgumentTexts,
+} from "./tokenLine.ts";
+export type { InputToken, TokenLine, TokenMultiLine } from "./tokenLine.ts";
 export * from "./jobControl.ts";
 export * from "./prompt.ts";
 export * from "./yaml-serialize.ts";
