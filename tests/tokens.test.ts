@@ -2,12 +2,17 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { typeInit, tokenMap } from "../src/tokens.ts";
 
 let numberValidator: ((value: string) => boolean) | undefined;
+let nakedStringValidator: ((value: string) => boolean) | undefined;
 
 beforeAll(() => {
   typeInit();
   numberValidator = tokenMap.get("Number")?.validator;
   if (!numberValidator) {
     throw new Error("Number token validator is not registered");
+  }
+  nakedStringValidator = tokenMap.get("NakedString")?.validator;
+  if (!nakedStringValidator) {
+    throw new Error("NakedString token validator is not registered");
   }
 });
 
@@ -16,6 +21,13 @@ function ensureValidator(): (value: string) => boolean {
     throw new Error("Number token validator is not registered");
   }
   return numberValidator;
+}
+
+function ensureNakedString(): (value: string) => boolean {
+  if (!nakedStringValidator) {
+    throw new Error("NakedString token validator is not registered");
+  }
+  return nakedStringValidator;
 }
 
 describe("Number token validator", () => {
@@ -72,5 +84,15 @@ describe("Number token validator", () => {
     for (const sample of samples) {
       expect(validate(sample)).toBe(false);
     }
+  });
+});
+
+describe("NakedString token validator", () => {
+  it("accepts arbitrary text", () => {
+    const validate = ensureNakedString();
+    expect(validate("")).toBe(true);
+    expect(validate("42")).toBe(true);
+    expect(validate("with spaces")).toBe(true);
+    expect(validate("symbols!@#")).toBe(true);
   });
 });

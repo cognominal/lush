@@ -5,9 +5,9 @@ describe('tokenLine utilities', () => {
   it('splits text into runs preserving offsets', () => {
     const tokens = tokenizeLine('echo  foo')
     expect(tokens).toEqual([
-      { type: 'AnyString', tokenIdx: 0, text: 'echo', x: 0 },
+      { type: 'NakedString', tokenIdx: 0, text: 'echo', x: 0 },
       { type: 'Space', tokenIdx: 1, text: '  ', x: 4 },
-      { type: 'AnyString', tokenIdx: 2, text: 'foo', x: 6 },
+      { type: 'NakedString', tokenIdx: 2, text: 'foo', x: 6 },
     ])
   })
 

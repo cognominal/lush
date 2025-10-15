@@ -12,7 +12,7 @@ export type TokenLine = InputToken[];
 export type TokenMultiLine = TokenLine[];
 
 const SPACE_TYPE = "Space";
-const ANY_STRING_TYPE = "AnyString";
+const NAKED_STRING_TYPE = "NakedString";
 
 export function tokenText(token: InputToken): string {
   if (typeof token.text === "string") return token.text;
@@ -30,7 +30,7 @@ export function tokenizeLine(text: string): TokenLine {
     while (idx < text.length && (text[idx] === " ") === isSpace) idx++;
     const segment = text.slice(start, idx);
     tokens.push({
-      type: isSpace ? SPACE_TYPE : ANY_STRING_TYPE,
+      type: isSpace ? SPACE_TYPE : NAKED_STRING_TYPE,
       tokenIdx: tokens.length,
       text: segment,
       x: start,

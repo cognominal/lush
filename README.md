@@ -80,9 +80,12 @@ Some items are moved to avoid cluttering the Readme.
   - [ ] On missing command or builtin don't echo anymore
   - [ ] On submit on empty command, possibly multi line, emit a bell, don'ti add
         to history
-  - [ ] Handling spaces. Fast double space should exit current token and move
-        next token which one of Space type, creating it if missing
-  - [ ] Type logic. Once in a space, fast double space, should rotate between
+  - [ ] Handling spaces. Simple space entering should create a space within the 
+        token only if it a naked string otherwise it break the token with the space 
+        token.
+        Fast double space should exit current token and move to
+        next token which is one of Space type, creating it if missing
+  - [x] Type logic. Once in a space, fast double space, should rotate between
         the logical types for the previous token
   - [ ] Backslash for metachars specially highlighted as one char
   - [ ] Same for globbing

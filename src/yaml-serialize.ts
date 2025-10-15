@@ -10,7 +10,7 @@ type RawToken = {
 };
 
 function sanitizeToken(raw: RawToken | null | undefined): InputToken {
-  const type = typeof raw?.type === "string" ? raw.type : "AnyString";
+  const type = typeof raw?.type === "string" ? raw.type : "NakedString";
   const tokenIdx = typeof raw?.tokenIdx === "number" && Number.isFinite(raw.tokenIdx) ? raw.tokenIdx : 0;
   const x = typeof raw?.x === "number" && Number.isFinite(raw.x) ? raw.x : 0;
 
@@ -22,8 +22,8 @@ function sanitizeToken(raw: RawToken | null | undefined): InputToken {
 
   if (Array.isArray(raw?.subTokens)) {
     base.subTokens = raw.subTokens.map(entry => sanitizeToken(entry as RawToken));
-  } else if (typeof raw?.text === "string") {
-    base.text = raw.text;
+  } else if (raw?.text !== undefined) {
+    base.text = String(raw.text);
   }
 
   return base;

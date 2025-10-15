@@ -53,6 +53,7 @@ export const oprMap: OprMapType = new Map()
 export const tokenMap: TokenMapType = new Map()
 // export const hiliteMap: HiliteMapType = new Map()
 
+const NAKED_STRING_TYPE = "NakedString";
 const DECIMAL_DIGITS = "(?:[0-9](?:_?[0-9])*)";
 const DECIMAL_INTEGER = "(?:0|[1-9](?:_?[0-9])*)";
 const DECIMAL_EXPONENT = `(?:[eE][+-]?${DECIMAL_DIGITS})`;
@@ -107,6 +108,12 @@ export function typeInit(): void {
   const numberToken = tokenMap.get("Number") ?? { type: "Number", priority: 0 }
   numberToken.validator = isValidJsNumberLiteral
   tokenMap.set("Number", numberToken)
+
+  const nakedStringToken = tokenMap.get(NAKED_STRING_TYPE)
+  if (nakedStringToken) {
+    nakedStringToken.validator = () => true
+    tokenMap.set(NAKED_STRING_TYPE, nakedStringToken)
+  }
 
   const hiliteEntries = (data as any)?.hilite
   if (!hiliteEntries || typeof hiliteEntries !== 'object') return

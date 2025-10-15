@@ -28,6 +28,8 @@ hilite:
   ValidPath: green
   InvalidPath: red
   NakedString: bgGray.white
+  Number: blue
+
 magicStr:
   shellMode:
     '&':

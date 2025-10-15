@@ -2,7 +2,7 @@ import type { InputToken, TokenLine } from "./tokenLine.ts";
 import { tokenText } from "./tokenLine.ts";
 
 const SPACE_TYPE = "Space";
-const DEFAULT_TEXT_TYPE = "AnyString";
+const DEFAULT_TEXT_TYPE = "NakedString";
 
 interface LeafLocation {
   container: InputToken[];
