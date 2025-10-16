@@ -3,6 +3,7 @@ import { typeInit, tokenMap } from "../src/tokens.ts";
 
 let numberValidator: ((value: string) => boolean) | undefined;
 let nakedStringValidator: ((value: string) => boolean) | undefined;
+let keywordValidator: ((value: string) => boolean) | undefined;
 
 beforeAll(() => {
   typeInit();
@@ -14,6 +15,7 @@ beforeAll(() => {
   if (!nakedStringValidator) {
     throw new Error("NakedString token validator is not registered");
   }
+  keywordValidator = tokenMap.get("Sh.Keyword")?.validator;
 });
 
 function ensureValidator(): (value: string) => boolean {
@@ -94,5 +96,19 @@ describe("NakedString token validator", () => {
     expect(validate("42")).toBe(true);
     expect(validate("with spaces")).toBe(true);
     expect(validate("symbols!@#")).toBe(true);
+  });
+});
+
+describe("Instance-derived validators", () => {
+  it("accepts only exact matches from instance list", () => {
+    expect(keywordValidator).toBeTypeOf("function");
+    if (!keywordValidator) return;
+    expect(keywordValidator("if")).toBe(true);
+    expect(keywordValidator("else")).toBe(true);
+    expect(keywordValidator("while")).toBe(true);
+    expect(keywordValidator("for")).toBe(true);
+    expect(keywordValidator("elif")).toBe(false);
+    expect(keywordValidator("If")).toBe(false);
+    expect(keywordValidator("for ")).toBe(false);
   });
 });

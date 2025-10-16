@@ -137,10 +137,4 @@ expression, shell statement, statement. Maybe shell statement will take over
 statement. For the time being that's a moot point, we are dealing with the lish
 shell.
 
-### mline status
-
-the mline status below the mline editor will show the current mode and the
-curent token type. This is useful when the user does not know, what highlighting
-corresponds to which token.
-
 ## the heuristics

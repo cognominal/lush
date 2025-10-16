@@ -1,11 +1,56 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import type { TokenLine, InputToken } from '../src/tokenLine.ts'
 import {
   insertTextIntoTokenLine,
   deleteRangeFromTokenLine,
   splitTokenLineAt,
+  normalizeTokenLineInPlace,
 } from '../src/tokenEdit.ts'
-import { tokenText } from '../src/tokenLine.ts'
+import { tokenText, tokenizeLine } from '../src/tokenLine.ts'
+import { registerToken } from '../src/tokens.ts'
+
+beforeAll(() => {
+  registerToken({
+    type: 'Builtin',
+    priority: 10,
+    secable: true,
+    validator: value => value === 'echo',
+  })
+  registerToken({
+    type: 'Number',
+    priority: 8,
+    secable: true,
+    validator: value => /^[0-9]+$/.test(value),
+  })
+  registerToken({
+    type: 'Space',
+    priority: 0,
+    secable: false,
+    validator: value => /^[ ]+$/.test(value),
+  })
+  registerToken({
+    type: 'Keyword',
+    priority: 9,
+    secable: true,
+    validator: value => value === 'if',
+  })
+  registerToken({
+    type: 'PromptChar',
+    priority: 0,
+    secable: false,
+    validator: value => value === '>',
+  })
+  registerToken({
+    type: 'Sigil',
+    priority: 9,
+    validator: value => value === '$',
+  })
+  registerToken({
+    type: 'SigillessName',
+    priority: 9,
+    validator: value => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value),
+  })
+})
 
 function createSampleLine(): TokenLine {
   return [
@@ -21,7 +66,7 @@ describe('tokenEdit utilities', () => {
     insertTextIntoTokenLine(line, 4, '!')
 
     expect(line).toHaveLength(3)
-    expect(line[0]).toMatchObject({ type: 'Builtin', text: 'echo!' })
+    expect(line[0]).toMatchObject({ type: 'NakedString', text: 'echo!' })
     expect(line[0]).toMatchObject({ tokenIdx: 0, x: 0 })
     expect(line[1]).toMatchObject({ type: 'Space', text: ' ', tokenIdx: 1, x: 5 })
     expect(line[2]).toMatchObject({ type: 'Number', text: '42', tokenIdx: 2, x: 6 })
@@ -32,9 +77,9 @@ describe('tokenEdit utilities', () => {
     insertTextIntoTokenLine(line, 2, ' ')
 
     expect(line.map(t => ({ type: t.type, text: t.text }))).toEqual([
-      { type: 'Builtin', text: 'ec' },
+      { type: 'SigillessName', text: 'ec' },
       { type: 'Space', text: ' ' },
-      { type: 'Builtin', text: 'ho' },
+      { type: 'SigillessName', text: 'ho' },
       { type: 'Space', text: ' ' },
       { type: 'Number', text: '42' },
     ])
@@ -98,5 +143,44 @@ describe('tokenEdit utilities', () => {
     deleteRangeFromTokenLine(line, 1, 2)
     expect(parent.subTokens?.[1]).toMatchObject({ type: 'SigillessName', text: 'oob', tokenIdx: 1, x: 1 })
     expect(tokenText(parent)).toBe('$oob')
+  })
+
+  it('keeps single spaces inside naked strings at the end', () => {
+    const line = tokenizeLine('foo')
+    insertTextIntoTokenLine(line, 3, ' ')
+    expect(line).toHaveLength(1)
+    expect(line[0]).toMatchObject({ type: 'NakedString', text: 'foo ' })
+  })
+
+  it('keeps embedded spaces inside naked strings', () => {
+    const line = tokenizeLine('echo')
+    insertTextIntoTokenLine(line, 2, ' ')
+    expect(line).toHaveLength(1)
+    expect(line[0]).toMatchObject({ type: 'NakedString', text: 'ec ho' })
+  })
+
+  it('extends existing space tokens when adding a fast double space near typed tokens', () => {
+    const line = createSampleLine()
+    insertTextIntoTokenLine(line, 5, ' ')
+
+    const space = line[1]
+    if (!space) throw new Error('expected space token after insertion')
+    expect(space).toMatchObject({ type: 'Space', text: '  ', tokenIdx: 1, x: 4 })
+
+    const existing = typeof space.text === 'string' ? space.text : ''
+    space.text = existing + ' '
+    normalizeTokenLineInPlace(line)
+
+    expect(line[1]).toMatchObject({ type: 'Space', text: '   ', tokenIdx: 1, x: 4 })
+    expect(line[2]).toMatchObject({ type: 'Number', text: '42', tokenIdx: 2, x: 7 })
+  })
+
+  it('ignores space insertion on non-secable tokens', () => {
+    const line: TokenLine = [
+      { type: 'PromptChar', tokenIdx: 0, text: '>', x: 0 },
+    ]
+    insertTextIntoTokenLine(line, 1, ' ')
+    expect(line).toHaveLength(1)
+    expect(line[0]).toMatchObject({ type: 'PromptChar', text: '>' })
   })
 })

@@ -31,6 +31,8 @@ export interface PreAstType {
   type: string   // type of the token
   validator?: (s: string) => boolean // true if string `s` can be token `type`
   hilite?: (s: string) => string
+  secable?: boolean
+  instances?: string[]
 }
 
 interface Opr {
@@ -99,8 +101,24 @@ export function typeInit(): void {
     const priority = typeof (entry as any).priority === 'number' ? (entry as any).priority : 0
     const existing: PreAstType = tokenMap.get(typeName) ?? { type: typeName, priority }
     existing.priority = priority
+    if ('secable' in entry) {
+      existing.secable = Boolean((entry as any).secable);
+    } else if (existing.secable === undefined) {
+      existing.secable = false;
+    }
+    const instanceSpec = typeof (entry as any).instances === 'string' ? (entry as any).instances : null;
+    if (instanceSpec) {
+      const parsed = instanceSpec.split("|").map(s => s.trim()).filter(Boolean);
+      if (parsed.length) {
+        existing.instances = parsed;
+      }
+    }
     if (typeof (entry as any).validator === 'function') {
       existing.validator = (entry as any).validator
+    }
+    if (!existing.validator && existing.instances?.length) {
+      const allowed = new Set(existing.instances);
+      existing.validator = (value: string) => allowed.has(value);
     }
     tokenMap.set(typeName, existing)
   }
@@ -139,4 +157,11 @@ export function typeInit(): void {
 
 export function getHighlighter(type: PreAstTypename): (s: string) => string {
   return tokenMap.get(type)?.hilite ?? String;
+}
+
+export function isTypeSecable(typeName: PreAstTypename | undefined): boolean {
+  if (!typeName) return false;
+  const entry = tokenMap.get(typeName);
+  if (!entry) return false;
+  return entry.secable === true;
 }

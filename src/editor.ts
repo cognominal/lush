@@ -36,7 +36,7 @@ import {
   splitTokenLineAt,
   normalizeTokenLineInPlace,
 } from './tokenEdit.ts'
-import { rotateTokenType } from "./tokenType.ts";
+import { rotateTokenType, promoteSpaceFromNakedString, SPACE_TYPE, DEFAULT_TEXT_TYPE } from "./tokenType.ts";
 
 enum  Mode {
    Sh = 'sh',
@@ -159,26 +159,40 @@ function lineTokenSpans(line: TokenLine): TokenSpan[] {
   return spans
 }
 
-function currentTokenAtCursor(): InputToken | undefined {
+function currentTokenInfo(): { token: InputToken | undefined; index: number } {
   const line = ensureLine(lineIdx)
-  if (line.length === 0) return undefined
+  if (line.length === 0) return { token: undefined, index: -1 }
   const spans = lineTokenSpans(line)
-  if (!spans.length) return undefined
+  if (!spans.length) return { token: undefined, index: -1 }
 
   for (const span of spans) {
-    if (colIdx >= span.start && colIdx < span.end) return span.token
+    if (colIdx >= span.start && colIdx < span.end) {
+      const token = span.token
+      const index = token ? line.indexOf(token) : -1
+      return { token, index }
+    }
   }
 
   if (colIdx > 0) {
     for (let i = spans.length - 1; i >= 0; i--) {
       const span = spans[i];
       if (!span) continue;
-      if (colIdx >= span.end) return span.token
+      if (colIdx >= span.end) {
+        const token = span.token;
+        const index = token ? line.indexOf(token) : -1;
+        return { token, index };
+      }
     }
   }
 
   const firstSpan = spans[0]
-  return firstSpan ? firstSpan.token : undefined
+  const token = firstSpan ? firstSpan.token : undefined
+  const index = token ? line.indexOf(token) : -1
+  return { token, index }
+}
+
+function currentTokenAtCursor(): InputToken | undefined {
+  return currentTokenInfo().token;
 }
 
 function stripBackgroundIndicator(args: string[], background: boolean): string[] {
@@ -267,8 +281,11 @@ function renderMline() {
   })
   const h = Math.max(1, visualLines.length)
 
-  const currentTokenType = currentTokenAtCursor()?.type ?? '-'
-  const statusLine = chalk.dim(`mode: ${mode} curtok ${currentTokenType}`)
+  const { token: activeToken, index: activeIndex } = currentTokenInfo();
+  const currentTokenType = activeToken?.type ?? '-';
+  const currentTokenIdx = activeIndex >= 0 ? activeIndex : '-';
+  const currentTokenLen = activeToken ? tokenText(activeToken).length : '-';
+  const statusLine = chalk.dim(`mode: ${mode} curtok ${currentTokenIdx} ${currentTokenLen} ${currentTokenType}`)
   const displayLines: string[] = [...visualLines, statusLine]
 
   const totalHeight = Math.max(1, displayLines.length)
@@ -712,37 +729,132 @@ function insertCharacter(ch: string) {
 }
 function handleDoubleSpaceEvent() {
   const line = ensureLine(lineIdx);
-  const currentToken = currentTokenAtCursor();
-  if (currentToken && currentToken.type === "Space") {
-    const tokenIndex = line.indexOf(currentToken);
-    let previousToken: InputToken | undefined;
-    if (tokenIndex > 0) {
-      for (let i = tokenIndex - 1; i >= 0; i--) {
-        const candidate = line[i];
-        if (!candidate) continue;
-        if (candidate.type !== "Space") {
-          previousToken = candidate;
-          break;
-        }
-      }
+  const spans = lineTokenSpans(line);
+  if (!spans.length) {
+    resetSpaceSequence();
+    return;
+  }
+
+  let spanAtCursor: TokenSpan | undefined;
+  for (const span of spans) {
+    if (colIdx < span.start) break;
+    spanAtCursor = span;
+    if (colIdx < span.end) break;
+  }
+
+  const tokenAtCursor = spanAtCursor?.token ?? currentTokenAtCursor();
+
+  const findPreviousNonSpace = (fromIndex: number): InputToken | undefined => {
+    for (let i = fromIndex; i >= 0; i--) {
+      const candidate = line[i];
+      if (!candidate) continue;
+      if (candidate.type !== SPACE_TYPE) return candidate;
     }
-    if (previousToken) {
-      const rotated = rotateTokenType(previousToken);
-      if (rotated) {
+    return undefined;
+  };
+
+  if (tokenAtCursor && tokenAtCursor.type === SPACE_TYPE) {
+    const index = line.indexOf(tokenAtCursor);
+    if (index !== -1) {
+      const previous = findPreviousNonSpace(index - 1);
+      if (previous && rotateTokenType(previous)) {
         normalizeTokenLineInPlace(line);
       }
     }
+    const refreshed = lineTokenSpans(line);
+    const spaceSpan = refreshed.find(entry => entry.token === tokenAtCursor);
+    if (spaceSpan) {
+      colIdx = spaceSpan.start;
+    }
+    resetSpaceSequence();
+    return;
   }
-  const current = lineText(line);
-  const prevChar = colIdx > 0 ? current[colIdx - 1] : undefined;
-  if (prevChar !== ' ') {
-    insertTextIntoTokenLine(line, colIdx, ' ');
-    colIdx += 1;
+
+  let initialIndex = tokenAtCursor ? line.indexOf(tokenAtCursor) : -1;
+  if (initialIndex === -1 || line[initialIndex]?.type === SPACE_TYPE) {
+    for (let i = spans.length - 1; i >= 0; i--) {
+      const span = spans[i];
+      const candidate = span?.token;
+      if (!candidate || candidate.type === SPACE_TYPE) continue;
+      if (colIdx >= span.start) {
+        initialIndex = line.indexOf(candidate);
+        if (initialIndex !== -1) break;
+      }
+    }
   }
-  const updated = lineText(line);
-  let cursor = colIdx;
-  while (cursor > 0 && updated[cursor - 1] === ' ') cursor--;
-  colIdx = cursor;
+  if (initialIndex === -1) {
+    for (let i = spans.length - 1; i >= 0; i--) {
+      const span = spans[i];
+      const candidate = span?.token;
+      if (!candidate || candidate.type === SPACE_TYPE) continue;
+      initialIndex = line.indexOf(candidate);
+      if (initialIndex !== -1) break;
+    }
+  }
+
+  let initialToken = initialIndex !== -1 ? line[initialIndex] : undefined;
+  if (initialToken?.type === SPACE_TYPE && initialIndex !== -1) {
+    initialToken = findPreviousNonSpace(initialIndex - 1);
+  }
+  if (!initialToken) {
+    resetSpaceSequence();
+    return;
+  }
+
+  let spaceToken: InputToken | undefined;
+  let needsNormalize = false;
+
+  if (initialToken.type === DEFAULT_TEXT_TYPE) {
+    const baseSpan = spanAtCursor && spanAtCursor.token === initialToken
+      ? spanAtCursor
+      : spans.find(entry => entry.token === initialToken);
+    const offset = baseSpan
+      ? Math.min(Math.max(colIdx - baseSpan.start, 0), baseSpan.end - baseSpan.start)
+      : tokenText(initialToken).length;
+    const promoted = promoteSpaceFromNakedString(line, initialToken, offset, 0);
+    if (promoted) {
+      spaceToken = promoted;
+      needsNormalize = true;
+    }
+  }
+
+  if (!spaceToken && initialIndex !== -1) {
+    const tokenIndex = line.indexOf(initialToken);
+    if (tokenIndex !== -1) {
+      const next = line[tokenIndex + 1];
+      if (next?.type === SPACE_TYPE) {
+        spaceToken = next;
+      }
+    }
+  }
+
+  if (!spaceToken) {
+    const initialSpan = spans.find(entry => entry.token === initialToken);
+    const insertionColumn = initialSpan ? initialSpan.end : colIdx;
+    insertTextIntoTokenLine(line, insertionColumn, " ");
+    needsNormalize = true;
+    const refreshed = lineTokenSpans(line);
+    const candidate = refreshed.find(entry =>
+      entry.start <= insertionColumn && insertionColumn < entry.end && entry.token?.type === SPACE_TYPE,
+    );
+    if (candidate?.token) {
+      spaceToken = candidate.token;
+    }
+  }
+
+  if (spaceToken) {
+    if (needsNormalize) {
+      normalizeTokenLineInPlace(line);
+    }
+    const refreshed = lineTokenSpans(line);
+    const spaceSpan = refreshed.find(entry => entry.token === spaceToken);
+    if (spaceSpan) {
+      colIdx = Math.min(spaceSpan.start, lineLength(line));
+    }
+  } else if (needsNormalize) {
+    normalizeTokenLineInPlace(line);
+  }
+
   resetSpaceSequence();
 }
 function insertNewline() {

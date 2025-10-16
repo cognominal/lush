@@ -1,5 +1,7 @@
 import type { InputToken, TokenLine } from "./tokenLine.ts";
 import { tokenText } from "./tokenLine.ts";
+import { isTypeSecable } from "./tokens.ts";
+import { retargetTokenLine } from "./tokenType.ts";
 
 const SPACE_TYPE = "Space";
 const DEFAULT_TEXT_TYPE = "NakedString";
@@ -141,6 +143,7 @@ function normalizeTokenLine(line: TokenLine): void {
   pruneEmptyTokens(line);
   mergeAdjacentTokens(line);
   pruneEmptyTokens(line);
+  retargetTokenLine(line);
   updateTokenPositions(line, 0);
 }
 
@@ -202,8 +205,33 @@ function insertNonSpace(location: LeafLocation, ch: string): void {
 
 function insertCharacter(line: TokenLine, column: number, ch: string): void {
   const location = locateLeaf(line, column, true);
+  const targetToken = location.token ?? (location.index > 0 ? location.container[location.index - 1] ?? null : null);
   if (ch === " ") {
-    insertSpace(location);
+    if (
+      (location.token && location.token.type === DEFAULT_TEXT_TYPE) ||
+      (!location.token && targetToken?.type === DEFAULT_TEXT_TYPE)
+    ) {
+      const adjusted: LeafLocation = location.token
+        ? location
+        : {
+            container: location.container,
+            index: Math.max(0, location.index - 1),
+            token: targetToken,
+            offset: targetToken ? tokenLength(targetToken) : 0,
+          };
+      insertNonSpace(adjusted, ch);
+    } else {
+      const candidate =
+        location.token && location.token.type !== SPACE_TYPE
+          ? location.token
+          : targetToken && targetToken.type !== SPACE_TYPE
+          ? targetToken
+          : null;
+      if (candidate && !isTypeSecable(candidate.type)) {
+        return;
+      }
+      insertSpace(location);
+    }
   } else {
     insertNonSpace(location, ch);
   }

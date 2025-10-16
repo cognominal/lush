@@ -17,13 +17,13 @@ docker run -it --rm lush
 
 ## Lush is special
 
-Work in progress, see [now](#now). See [AGENTS.md](./AGENTS.md) for genrral
+Work in progress, see [now](#now). See [AGENTS.md](./AGENTS.md) for general
 development intructions. They are for API but are relevant for humans too.
 
 A shell that runs on node. Highlighting is used as primary representation. That
 complexifies slightly the input by the user but that makes code syntax simpler
 and more readable. Most obvious consequences : rejuvenate the concept of naked
-sting. The input will be encoded as a sequence of tokens.
+string. The input is encoded as a sequence of tokens.
 
 For ts and svelte, see [augmentations](./Acorn-augmentations.md)
 
@@ -70,26 +70,33 @@ Some items are moved to avoid cluttering the Readme.
 
 - Programming. Not necessarily linked to a feature but needed to run/grow the
   system
-  - [ ] `Token` should be a registry not an enum. Rename to ast node
-  - [ ] Some sort of status field below the multi line editor would help
-  - [ ] check display of multilevel tokens
+  - [x] `Token` should be a registry not an enum.
+  - []  edition of insecable token is forbidden. Such token is erased when
+        backspacing from the
+        token after it.
+  - [x]  Status field below the multi line editor would help
+  - [ ] specify display and edition of multilevel tokens. Maybe driven by new fields
 - Multi line editor.
-  - [x] Core logic
-  - [ ] correct handling of tokens when launching builtins and commands, meaning
+  - [x] correct handling of tokens when launching builtins and commands, meaning
         space token separates arguments
-  - [ ] On missing command or builtin don't echo anymore
-  - [ ] On submit on empty command, possibly multi line, emit a bell, don'ti add
+  - [ ] On submit on empty command, possibly multi line, emit a bell, don't add
         to history
-  - [ ] Handling spaces. Simple space entering should create a space within the 
-        token only if it a naked string otherwise it break the token with the space 
-        token.
-        Fast double space should exit current token and move to
-        next token which is one of Space type, creating it if missing
-  - [x] Type logic. Once in a space, fast double space, should rotate between
-        the logical types for the previous token
+  - [ ] Space handling
+    Single space inside NakedString or Space token must insert a literal space.
+    Single space elsewhere (only on a secable token)
+    must split the token and insert a distinct Space token.
+    Rapid double-space  on a non Space token move the cursor to the adjacent space
+    token or create one to do so,
+    Double space on a space token just rotate the previous token type if any.
+      [ ]
   - [ ] Backslash for metachars specially highlighted as one char
   - [ ] Same for globbing
   - [ ] Command/builtin completion
+  - [x] mline status
+
+  - [x] the mline status:  below the mline editor, shows the current mode, the
+       current token idx and type.
+
 - lush : Features specific to lush
 - [ ] Hooking to acorn to do more than launching commands and executing
       builtins.
@@ -107,13 +114,13 @@ Some items are moved to avoid cluttering the Readme.
   - [ ] Aliases ??
   - [ ] Globbing
   - [ ] Simple redirections
-  - [ ] Job control
+  - [ ] Job control (code not tested)
   - History
     - [x] ^P, ^N move in history
     - [ ] But should display only entries with same initial tokens
-    - [ ] saving history, per cwd
-    - [ ] History saved as Astre
-
+    - [x] saving history, per cwd
+    - [x] History saved as yaml (astre later)
+    - [ ] History saved as yaml (also as AST)
 - Astre (Ast REference Representation) is what it says, and what we interact
   with is an Astre unparsing
   - [ ] Build on Acorn a la svelte
@@ -127,7 +134,6 @@ Some items are moved to avoid cluttering the Readme.
 - Various
   - [x] Docker image
   - [ ] Stackblitz. Run a shell server side ?
-  - [ ] Busybox. Many builtinsi for free
 - [ ] Nvim. We now run in a terminal. We want to program lush in nvim
 - [ ] Doc. I have tons of thoughts in various .mds. This tick list makes little
       sense without it. Make some of them readable for an newcomer. But a demo
