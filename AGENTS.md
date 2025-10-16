@@ -53,3 +53,8 @@ behind the existing helpers in `src/editor.ts` so tests remain deterministic.
 Avoid hard-coding absolute paths—use `path.join` like the current code. When
 spawning external commands, add guards or fakes for tests to prevent hitting the
 real shell.
+
+## Agent Communication
+
+- Reformulate complex or ambiguous requests before executing them.
+- Keep each chat line at 80 characters or fewer.
