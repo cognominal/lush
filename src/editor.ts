@@ -36,11 +36,11 @@ import {
   splitTokenLineAt,
   normalizeTokenLineInPlace,
 } from './tokenEdit.ts'
-import { rotateTokenType, promoteSpaceFromNakedString, SPACE_TYPE, DEFAULT_TEXT_TYPE } from "./tokenType.ts";
+import { rotateTokenType, sortedValidTokens, promoteSpaceFromNakedString, SPACE_TYPE, DEFAULT_TEXT_TYPE } from "./tokenType.ts";
 
-enum  Mode {
-   Sh = 'sh',
-   expr = 'expr'
+enum Mode {
+  Sh = 'sh',
+  expr = 'expr'
 }
 
 let mode: Mode = Mode.Sh
@@ -285,7 +285,20 @@ function renderMline() {
   const currentTokenType = activeToken?.type ?? '-';
   const currentTokenIdx = activeIndex >= 0 ? activeIndex : '-';
   const currentTokenLen = activeToken ? tokenText(activeToken).length : '-';
-  const statusLine = chalk.dim(`mode: ${mode} curtok ${currentTokenIdx} ${currentTokenLen} ${currentTokenType}`)
+  const validTypes = sortedValidTokens(activeToken);
+  const highlightedTypes = validTypes.map(candidate => {
+    const label = candidate.type;
+    if (!label) return "";
+    return label === currentTokenType ? chalk.inverse(label) : chalk.gray(label);
+  }).filter(Boolean);
+  const fallbackType = typeof currentTokenType === "string" ? currentTokenType : "";
+  const typeDisplay = highlightedTypes.length
+    ? highlightedTypes.join("     ")
+    : fallbackType && fallbackType !== "-"
+      ? chalk.inverse(fallbackType)
+      : chalk.dim("no types");
+  const statusInfo = chalk.dim(`mode: ${mode} curtok ${currentTokenIdx} ${currentTokenLen}`)
+  const statusLine = `${statusInfo}          ${chalk.dim("types:")} ${typeDisplay}`
   const displayLines: string[] = [...visualLines, statusLine]
 
   const totalHeight = Math.max(1, displayLines.length)

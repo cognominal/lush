@@ -92,10 +92,8 @@ Some items are moved to avoid cluttering the Readme.
   - [ ] Backslash for metachars specially highlighted as one char
   - [ ] Same for globbing
   - [ ] Command/builtin completion
-  - [x] mline status
-
   - [x] the mline status:  below the mline editor, shows the current mode, the
-       current token idx and type.
+       current token idx, a list of valid types with the current type highlighted.
 
 - lush : Features specific to lush
 - [ ] Hooking to acorn to do more than launching commands and executing
