@@ -1,3 +1,6 @@
+import chalk from "chalk";
+import type { PreAstType } from "./tokens.ts";
+
 export function isStrNumber(input: string): boolean {
   if (typeof input !== "string") return false;
   const trimmed = input.trim();
@@ -54,4 +57,59 @@ export function stripSigils(input: string): string {
     idx += 1;
   }
   return input.slice(idx);
+}
+
+export interface StatusLineParams {
+  modeLabel: string;
+  currentTokenType?: string | null;
+  currentTokenIndex?: number | null;
+  currentTokenLength?: number | null;
+  validTypes: readonly PreAstType[];
+}
+
+function formatTokenIndex(index: number | null | undefined): string {
+  if (typeof index === "number" && index >= 0) return String(index);
+  return "-";
+}
+
+function formatTokenLength(length: number | null | undefined): string {
+  if (typeof length === "number" && length >= 0) return String(length);
+  return "-";
+}
+
+function buildTypeDisplay(
+  currentType: string | null | undefined,
+  candidates: readonly PreAstType[],
+): string {
+  const highlighted = candidates
+    .map(entry => {
+      const label = entry?.type;
+      if (!label) return "";
+      return label === currentType ? chalk.inverse(label) : chalk.gray(label);
+    })
+    .filter(part => Boolean(part));
+
+  if (highlighted.length) {
+    return highlighted.join("     ");
+  }
+
+  const fallback = typeof currentType === "string" ? currentType : "";
+  if (fallback && fallback !== "-") {
+    return chalk.inverse(fallback);
+  }
+  return chalk.dim("no types");
+}
+
+export function formatStatusLine({
+  modeLabel,
+  currentTokenType,
+  currentTokenIndex,
+  currentTokenLength,
+  validTypes,
+}: StatusLineParams): string {
+  const indexLabel = formatTokenIndex(currentTokenIndex ?? null);
+  const lengthLabel = formatTokenLength(currentTokenLength ?? null);
+  const statusInfo = chalk.dim(`mode: ${modeLabel} curtok ${indexLabel} ${lengthLabel}`);
+  const typeDisplay = buildTypeDisplay(currentTokenType ?? null, validTypes);
+  return `${statusInfo}          ${chalk.dim("types:")} ${typeDisplay}`;
 }
