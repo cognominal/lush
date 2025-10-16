@@ -85,7 +85,7 @@ function buildTypeDisplay(
     .map(entry => {
       const label = entry?.type;
       if (!label) return "";
-      return label === currentType ? chalk.inverse(label) : chalk.gray(label);
+      return label === currentType ? label : chalk.gray(label);
     })
     .filter(part => Boolean(part));
 
@@ -104,12 +104,11 @@ export function formatStatusLine({
   modeLabel,
   currentTokenType,
   currentTokenIndex,
-  currentTokenLength,
   validTypes,
 }: StatusLineParams): string {
+  const treepath = `${chalk.bold('treepath:')} TBD   `
   const indexLabel = formatTokenIndex(currentTokenIndex ?? null);
-  const lengthLabel = formatTokenLength(currentTokenLength ?? null);
-  const statusInfo = chalk.dim(`mode: ${modeLabel} curtok ${indexLabel} ${lengthLabel}`);
+  const statusInfo = `${chalk.bold('mode:')} ${modeLabel}    ${chalk.bold('tokidx:')}  ${indexLabel}`;
   const typeDisplay = buildTypeDisplay(currentTokenType ?? null, validTypes);
-  return `${statusInfo}          ${chalk.dim("types:")} ${typeDisplay}`;
+  return `${treepath} ${statusInfo}          ${chalk.bold("types:")} ${typeDisplay}`;
 }
