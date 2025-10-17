@@ -1,41 +1,41 @@
 tokenstypes:
-  - type: Space
+  Space:
     priority: 0
-  - type: NakedString
+  NakedString:
     priority: 0
-  - type: Sh.Keyword
+  Sh.Keyword:
     instances: if|else|for|while
     priority: 100
     secable: true
-  - type: Path
+  Path:
     secable: true
-  - type: InvalidPath
+  InvalidPath:
     secable: true
-  - type: ValidPath
+  ValidPath:
     secable: true
-  - type: Sigil
-  - type: Twigil
-  - type: SigillessName
-  - type: PromptChar
-  - type: Number
+  Sigil: {}
+  Twigil: {}
+  SigillessName: {}
+  PromptChar: {}
+  Number:
     secable: true
-  - type: HTML.tag
-  - type: HTML.tailwindclass
-  - type: Sh.redirect
+  HTML.tag: {}
+  HTML.tailwindclass: {}
+  Sh.redirect:
     secable: true
-  - type: Sh.toExpr
+  Sh.toExpr:
     secable: true
-  - type: Sh.builtin
+  Sh.builtin:
     secable: true
-  - type:  Sh.commandName
+  Sh.commandName:
     secable: true
-#  - type: BeSmart
+#  BeSmart: {}
 # is input buffer doubling as partial AST, how ?
 # will experiment 
 #    
-  - type: js.program
-  - type: js.ExpressionStatement
-  - type: js.Literal
+  js.program: {}
+  js.ExpressionStatement: {}
+  js.Literal: {}
 hilite:
   Sh.keyword: bold
   ValidPath: green

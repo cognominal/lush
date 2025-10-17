@@ -41,6 +41,10 @@ export interface SnippetField extends TokenType {
   placeholder?: string
 }
 
+export interface Hiliter extends TokenType {
+  doesHilite?: boolean
+}
+
 interface Opr {
   type: OprType,
   s: string
@@ -85,6 +89,13 @@ const NUMBER_LITERAL_PATTERN = new RegExp(
   `^(?:${DECIMAL_LITERAL}|${HEX_LITERAL}|${OCT_LITERAL}|${BIN_LITERAL}|${DECIMAL_BIGINT}|${HEX_BIGINT}|${OCT_BIGINT}|${BIN_BIGINT})$`
 );
 
+type TokenYamlSpec = Record<string, unknown> & {
+  priority?: unknown
+  secable?: unknown
+  instances?: unknown
+  validator?: unknown
+}
+
 function isValidJsNumberLiteral(value: string): boolean {
   if (typeof value !== "string" || value.length === 0) return false;
   return NUMBER_LITERAL_PATTERN.test(value);
@@ -103,29 +114,35 @@ export function typeInit(): void {
   const langPath = fileURLToPath(new URL('../lang.yml', import.meta.url))
   const yaml = readFileSync(langPath, 'utf-8')
   const data = YAML.load(yaml)
-  const tokenTypes = Array.isArray((data as any)?.tokenstypes) ? (data as any).tokenstypes as unknown[] : []
+  const rawTokenTypes = (data as any)?.tokenstypes
+  const tokenTypeEntries = rawTokenTypes && typeof rawTokenTypes === 'object' && !Array.isArray(rawTokenTypes)
+    ? Object.entries(rawTokenTypes as Record<string, unknown>)
+    : []
 
-  for (const entry of tokenTypes) {
-    if (!entry || typeof entry !== 'object') continue
-    const typeName = (entry as any).type
+  for (const [typeName, spec] of tokenTypeEntries) {
     if (typeof typeName !== 'string' || !typeName) continue
-    const priority = typeof (entry as any).priority === 'number' ? (entry as any).priority : 0
+    const entry: TokenYamlSpec = spec && typeof spec === 'object' ? spec as TokenYamlSpec : {}
+    const priorityValue = entry.priority
+    const priority = typeof priorityValue === 'number' ? priorityValue : 0
     const existing: TokenType = ShTokenMap.get(typeName) ?? { type: typeName, priority }
     existing.priority = priority
     if ('secable' in entry) {
-      existing.secable = Boolean((entry as any).secable);
+      existing.secable = Boolean(entry.secable);
     } else if (existing.secable === undefined) {
       existing.secable = false;
     }
-    const instanceSpec = typeof (entry as any).instances === 'string' ? (entry as any).instances : null;
-    if (instanceSpec) {
-      const parsed = instanceSpec.split("|").map(s => s.trim()).filter(Boolean);
-      if (parsed.length) {
-        existing.instances = parsed;
-      }
+    const instanceSpec = entry.instances
+    let parsedInstances: string[] | undefined
+    if (typeof instanceSpec === 'string') {
+      parsedInstances = instanceSpec.split("|").map(s => s.trim()).filter(Boolean);
+    } else if (Array.isArray(instanceSpec)) {
+      parsedInstances = instanceSpec.map(s => typeof s === 'string' ? s.trim() : '').filter(Boolean);
     }
-    if (typeof (entry as any).validator === 'function') {
-      existing.validator = (entry as any).validator
+    if (parsedInstances && parsedInstances.length) {
+      existing.instances = parsedInstances;
+    }
+    if (typeof entry.validator === 'function') {
+      existing.validator = entry.validator as (s: string) => boolean
     }
     if (!existing.validator && existing.instances?.length) {
       const allowed = new Set(existing.instances);
