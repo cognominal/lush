@@ -1,11 +1,20 @@
 # Modes and snippets
 
+This is brain storming. 
+This will change.
+We add the data types to the existing 
+code without implementing the feature to be sure we understand
+ts logic.
+
+## datatypes
+
 A `TokenMultiline` tree has a double role.
 
 As the data behind the multiline
 and later a nvim buffer it does drive the display of a susy.
 
-But it is already a PreAST.
+But it is already a pre ast meaning it should be trivial to 
+convert it to an astre.
 
 A `TokenMultiLine` is made of `InputToken`s.
 The `TokenType` of `InputToken`s drives the behavior or the mline editor.
@@ -25,6 +34,9 @@ export interface SnippetField extends TokenType {
   placeholder?: string
   defaultCode: string  // serialized TokenMultiline
 } 
+export interface Hiliter extends TokenType {
+  doesHilite?: boolean
+}
 
 ```
 
@@ -37,6 +49,13 @@ export interface InputToken {
   x?: number;
 }
 ```
+
+A `Hiliter` takes no part in edition and its fiels `doesHite` is not serialized 
+or deserialized. 
+
+`SnippeitField`s are modal. The mode influences the edition. 
+Only tab and shift tab will move the cursor out of the field.
+
 
 ## Snippets
 

@@ -68,14 +68,17 @@ Some items are moved to avoid cluttering the Readme.
 
 [builtins](./builtins.md)
 
-- Programming. Not necessarily linked to a feature but needed to run/grow the
+- Programming. Not necessarily linked to a user facing feature but needed to run/grow the
   system
   - [x] `Token` should be a registry not an enum.
   - []  edition of insecable token is forbidden. Such token is erased when
         backspacing from the
         token after it.
   - [x]  Status field below the multi line editor would help
-  - [ ] specify display and edition of multilevel tokens. Maybe driven by new fields
+  - [ ] specify display and edition of multilevel tokens. Maybe driven
+        by new fields. See[modes and snippets](/mode-and-snippets.md)
+  - [x]  the `tokenstypes` field in `lang.yml` should be a map keyed by type names
+
 - Multi line editor.
   - [x] correct handling of tokens when launching builtins and commands, meaning
         space token separates arguments
@@ -94,7 +97,7 @@ Some items are moved to avoid cluttering the Readme.
   - [ ] Command/builtin completion
   - [x] the mline status:  below the mline editor, shows the current mode, the
        current token idx, a list of valid types with the current type highlighted.
-
+  - [ ] bring it to the next level. See [modes and snippets](/mode-and-snippets.md)
 - lush : Features specific to lush
 - [ ] Hooking to acorn to do more than launching commands and executing
       builtins.

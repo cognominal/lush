@@ -1,3 +1,4 @@
+# AGENTS.md
 
 `src/` contains the TypeScript sources for the interactive shell. The `main`
 function in `src/editor.ts` is the CLI entry point configured in `package.json`;
