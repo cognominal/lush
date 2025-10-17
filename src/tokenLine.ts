@@ -1,7 +1,7 @@
-import type { PreAstTypename } from "./tokens.ts";
+import type { TokenTypename as TokenTypeName } from "./tokens.ts";
 
 export interface InputToken {
-  type: PreAstTypename;
+  type: TokenTypeName;
   tokenIdx: number;
   text?: string; // missing for types that have subtypes
   subTokens?: InputToken[];

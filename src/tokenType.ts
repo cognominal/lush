@@ -1,10 +1,10 @@
 import { tokenText, type InputToken, type TokenLine } from "./tokenLine.ts";
-import { tokenMap, type PreAstType } from "./tokens.ts";
+import { tokenMap, type TokenType } from "./tokens.ts";
 
 export const SPACE_TYPE = "Space";
 export const DEFAULT_TEXT_TYPE = "NakedString";
 
-export function sortedValidTokens(token: InputToken | undefined): PreAstType[] {
+export function sortedValidTokens(token: InputToken | undefined): TokenType[] {
   if (!token) return [];
   const text = tokenText(token);
   if (!text) return [];

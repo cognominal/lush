@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { PreAstType } from "./tokens.ts";
+import type { TokenType } from "./tokens.ts";
 
 export function isStrNumber(input: string): boolean {
   if (typeof input !== "string") return false;
@@ -64,7 +64,7 @@ export interface StatusLineParams {
   currentTokenType?: string | null;
   currentTokenIndex?: number | null;
   currentTokenLength?: number | null;
-  validTypes: readonly PreAstType[];
+  validTypes: readonly TokenType[];
 }
 
 function formatTokenIndex(index: number | null | undefined): string {
@@ -79,7 +79,7 @@ function formatTokenLength(length: number | null | undefined): string {
 
 function buildTypeDisplay(
   currentType: string | null | undefined,
-  candidates: readonly PreAstType[],
+  candidates: readonly TokenType[],
 ): string {
   const highlighted = candidates
     .map(entry => {
