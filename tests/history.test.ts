@@ -11,9 +11,9 @@ const {
   deserializeHistory,
   serializeHistory,
   tokenMultiLineToCommand,
-} = await import("../src/history.ts");
-const { tokenizeLine } = await import("../src/tokenLine.ts");
-const { getBuiltin } = await import("../src/index.ts");
+  tokenizeLine,
+  getBuiltin,
+} = await import("../src/index.ts");
 
 describe("history persistence", () => {
   const tmpPrefix = path.join(os.tmpdir(), "lush-history-");

@@ -2,13 +2,17 @@ import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vites
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { HistoryEntry } from "../src/builtins.ts";
+import type { HistoryEntry } from "../src/index.ts";
 
 process.env.FORCE_COLOR = process.env.FORCE_COLOR ?? "1";
 
 const { default: chalk } = await import("chalk");
-const { chalkHtml, getBuiltin } = await import("../src/builtins.ts");
-const { clearDirectoryStack, getDirectoryStack } = await import("../src/builtins/directoryStack.ts");
+const {
+  chalkHtml,
+  getBuiltin,
+  clearDirectoryStack,
+  getDirectoryStack,
+} = await import("../src/index.ts");
 
 const realCwd = process.cwd();
 let currentDir = realCwd;

@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import type { TokenLine, InputToken } from '../src/tokenLine.ts'
 import {
   insertTextIntoTokenLine,
   deleteRangeFromTokenLine,
   splitTokenLineAt,
   normalizeTokenLineInPlace,
-} from '../src/tokenEdit.ts'
-import { tokenText, tokenizeLine } from '../src/tokenLine.ts'
-import { registerToken } from '../src/tokens.ts'
+  tokenText,
+  tokenizeLine,
+  registerToken,
+  type TokenLine,
+  type InputToken,
+} from '../src/index.ts'
 
 beforeAll(() => {
   registerToken({

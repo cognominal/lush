@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { prompt } from "../src/prompt.ts";
+import { prompt } from "../src/index.ts";
 
 describe("prompt", () => {
   it("pads the history number to four characters", () => {

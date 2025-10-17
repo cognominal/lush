@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { tokenizeLine, handleDoubleSpace, collectArgumentTexts } from '../src/tokenLine.ts'
+import { tokenizeLine, handleDoubleSpace, collectArgumentTexts } from '../src/index.ts'
 
 describe('tokenLine utilities', () => {
   it('splits text into runs preserving offsets', () => {

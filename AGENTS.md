@@ -27,6 +27,10 @@ Prefer `const` for bindings, camelCase for functions and variables, and
 PascalCase for types and enums. When adding token helpers, mirror `Token` and
 `PreAstType` naming from `src/tokenLine.ts` to keep autocomplete predictable.
 Markdown file have a max line length of 80 chars. Ts should be type error free.
+Internal modules must be imported via `src/index.ts`; add re-exports there
+(e.g. `export * from "./augmentedAcorn.ts";`) before using new symbols. The
+bootstrap file `src/builtins.ts` is the lone exception so the registry can
+initialize without circular imports.
 
 ## Testing Guidelines
 

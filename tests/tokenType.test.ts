@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { typeInit } from "../src/tokens.ts";
-import { rotateTokenType, promoteSpaceFromNakedString } from "../src/tokenType.ts";
-import { insertTextIntoTokenLine, normalizeTokenLineInPlace } from "../src/tokenEdit.ts";
-import { tokenText, type InputToken, type TokenLine } from "../src/tokenLine.ts";
+import {
+  typeInit,
+  rotateTokenType,
+  promoteSpaceFromNakedString,
+  insertTextIntoTokenLine,
+  normalizeTokenLineInPlace,
+  tokenText,
+  type InputToken,
+  type TokenLine,
+} from "../src/index.ts";
 
 beforeAll(async () => {
   await typeInit();

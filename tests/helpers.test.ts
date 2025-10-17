@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-const { isStrNumber, isStrVariable, stripSigils } = await import("../src/helpers.ts");
+const { isStrNumber, isStrVariable, stripSigils } = await import("../src/index.ts");
 
 describe("isStrNumber", () => {
   it("accepts decimal numbers", () => {

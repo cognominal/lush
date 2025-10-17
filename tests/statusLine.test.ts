@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import chalk from "chalk";
 
-const { formatStatusLine } = await import("../src/helpers.ts");
+const { formatStatusLine } = await import("../src/index.ts");
 
 describe("formatStatusLine", () => {
-  it("highlights the active token type among candidates", () => {
+  it("renders the treepath, mode, and token index with candidates", () => {
     const candidates = [
       { type: "Number", priority: 10 },
       { type: "Word", priority: 5 },
@@ -13,14 +13,15 @@ describe("formatStatusLine", () => {
       modeLabel: "sh",
       currentTokenType: "Number",
       currentTokenIndex: 0,
-      currentTokenLength: 3,
       validTypes: candidates,
     });
 
-    expect(rendered.startsWith(chalk.dim("mode: sh curtok 0 3"))).toBe(true);
-    expect(rendered).toContain(chalk.inverse("Number"));
+    expect(rendered.startsWith(`${chalk.bold("treepath:")} TBD`)).toBe(true);
+    expect(rendered).toContain(`${chalk.bold("mode:")} sh`);
+    expect(rendered).toContain(`${chalk.bold("tokidx:")}  0`);
+    expect(rendered).toContain("Number");
     expect(rendered).toContain(chalk.gray("Word"));
-    expect(rendered).toContain(chalk.dim("types:"));
+    expect(rendered).toContain(chalk.bold("types:"));
   });
 
   it("uses fallback highlighting when no candidates exist", () => {
@@ -28,12 +29,13 @@ describe("formatStatusLine", () => {
       modeLabel: "expr",
       currentTokenType: "Identifier",
       currentTokenIndex: null,
-      currentTokenLength: null,
       validTypes: [],
     });
 
-    expect(rendered.startsWith(chalk.dim("mode: expr curtok - -"))).toBe(true);
+    expect(rendered).toContain(`${chalk.bold("mode:")} expr`);
+    expect(rendered).toContain(`${chalk.bold("tokidx:")}  -`);
     expect(rendered).toContain(chalk.inverse("Identifier"));
+    expect(rendered).toContain(chalk.bold("types:"));
   });
 
   it("shows no types when nothing is available", () => {
@@ -41,10 +43,10 @@ describe("formatStatusLine", () => {
       modeLabel: "sh",
       currentTokenType: null,
       currentTokenIndex: -1,
-      currentTokenLength: -1,
       validTypes: [],
     });
 
     expect(rendered).toContain(chalk.dim("no types"));
+    expect(rendered).toContain(`${chalk.bold("tokidx:")}  -`);
   });
 });

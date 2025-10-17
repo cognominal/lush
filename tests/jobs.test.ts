@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-const { getBuiltin } = await import("../src/builtins.ts");
+const { getBuiltin } = await import("../src/index.ts");
 
 describe("job control builtins", () => {
   const jobsBuiltin = getBuiltin("jobs");

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { typeInit, tokenMap } from "../src/tokens.ts";
+import { typeInit, tokenMap } from "../src/index.ts";
 
 let numberValidator: ((value: string) => boolean) | undefined;
 let nakedStringValidator: ((value: string) => boolean) | undefined;

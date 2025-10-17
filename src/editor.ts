@@ -14,6 +14,7 @@ import {
   type InputToken,
   type TokenLine,
   type TokenMultiLine,
+  type Mode,
   getHighlighter,
   tokenizeLine,
   collectArgumentTexts,
@@ -29,19 +30,25 @@ import {
   resumeShell,
   typeInit,
   prompt as buildPrompt,
-} from './index.ts'
+} from "./index.ts";
 import {
   insertTextIntoTokenLine,
   deleteRangeFromTokenLine,
   splitTokenLineAt,
   normalizeTokenLineInPlace,
-} from './tokenEdit.ts'
-import { rotateTokenType, sortedValidTokens, promoteSpaceFromNakedString, SPACE_TYPE, DEFAULT_TEXT_TYPE } from "./tokenType.ts";
-import { formatStatusLine } from "./helpers.ts";
+} from "./index.ts";
+import {
+  rotateTokenType,
+  sortedValidTokens,
+  promoteSpaceFromNakedString,
+  SPACE_TYPE,
+  DEFAULT_TEXT_TYPE,
+  formatStatusLine,
+} from "./index.ts";
 
 enum Mode {
-  Sh = 'sh',
-  expr = 'expr'
+  Sh,
+  Expr
 }
 
 let mode: Mode = Mode.Sh
