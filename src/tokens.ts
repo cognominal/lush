@@ -2,6 +2,7 @@ import chalk from "chalk";
 import * as YAML from 'js-yaml';
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { Mode } from './index.ts'
 
 /*
  * Logic to handle token registration and typing
@@ -35,24 +36,34 @@ export interface TokenType {
   instances?: string[]
 }
 
+export interface SnippetField extends TokenType {
+  mode?: Mode
+  placeholder?: string
+}
+
 interface Opr {
   type: OprType,
   s: string
   s1?: string // for multitoken operators
 }
 
-export type TokenTypename = string
+export type TokenTypeName = string
+export type ModeName = string
 //  + for example can be both prefix or infix so the `[Opr]`
 export type OprMapType = Map<string, Opr | [Opr]>
 // 2 separate maptyprd for the same keytype cuz hiliting is 
 // more a user thing and tokens a language thing
-export type TokenMapType = Map<TokenTypename, TokenType>
-export type HiliteMapType = Map<TokenTypename, TokenType>
+export type TokenMapType = Map<TokenTypeName, TokenType>
+export type TokenMapsType = Map<ModeName, TokenMapType>
+export type HiliteMapType = Map<TokenTypeName, TokenType>
 export type HiliterType = (s: string) => string
 // export type hiliteMapType = Map<PreAstType, HiliterType>
 
 export const oprMap: OprMapType = new Map()
-export const tokenMap: TokenMapType = new Map()
+export const ShTokenMap: TokenMapType = new Map()
+export const tokenMap = ShTokenMap
+export const TokenMaps: TokenMapsType = new Map()
+
 // export const hiliteMap: HiliteMapType = new Map()
 
 const NAKED_STRING_TYPE = "NakedString";
@@ -84,7 +95,7 @@ export function registerOpr(s: string, type: OprType, s1?: string) {
 }
 
 export function registerToken(t: TokenType): void {
-  tokenMap.set(t.type, t)
+  ShTokenMap.set(t.type, t)
 }
 
 
@@ -99,7 +110,7 @@ export function typeInit(): void {
     const typeName = (entry as any).type
     if (typeof typeName !== 'string' || !typeName) continue
     const priority = typeof (entry as any).priority === 'number' ? (entry as any).priority : 0
-    const existing: TokenType = tokenMap.get(typeName) ?? { type: typeName, priority }
+    const existing: TokenType = ShTokenMap.get(typeName) ?? { type: typeName, priority }
     existing.priority = priority
     if ('secable' in entry) {
       existing.secable = Boolean((entry as any).secable);
@@ -120,17 +131,17 @@ export function typeInit(): void {
       const allowed = new Set(existing.instances);
       existing.validator = (value: string) => allowed.has(value);
     }
-    tokenMap.set(typeName, existing)
+    ShTokenMap.set(typeName, existing)
   }
 
-  const numberToken = tokenMap.get("Number") ?? { type: "Number", priority: 0 }
+  const numberToken = ShTokenMap.get("Number") ?? { type: "Number", priority: 0 }
   numberToken.validator = isValidJsNumberLiteral
-  tokenMap.set("Number", numberToken)
+  ShTokenMap.set("Number", numberToken)
 
-  const nakedStringToken = tokenMap.get(NAKED_STRING_TYPE)
+  const nakedStringToken = ShTokenMap.get(NAKED_STRING_TYPE)
   if (nakedStringToken) {
     nakedStringToken.validator = () => true
-    tokenMap.set(NAKED_STRING_TYPE, nakedStringToken)
+    ShTokenMap.set(NAKED_STRING_TYPE, nakedStringToken)
   }
 
   const hiliteEntries = (data as any)?.hilite
@@ -149,19 +160,19 @@ export function typeInit(): void {
 
     if (typeof current !== 'function') continue
     const hiliteFn = (s: string) => current(s)
-    const token = tokenMap.get(typeName) ?? { type: typeName, priority: 0 }
+    const token = ShTokenMap.get(typeName) ?? { type: typeName, priority: 0 }
     token.hilite = hiliteFn
-    tokenMap.set(typeName, token)
+    ShTokenMap.set(typeName, token)
   }
 }
 
-export function getHighlighter(type: TokenTypename): (s: string) => string {
-  return tokenMap.get(type)?.hilite ?? String;
+export function getHighlighter(type: TokenTypeName): (s: string) => string {
+  return ShTokenMap.get(type)?.hilite ?? String;
 }
 
-export function isTypeSecable(typeName: TokenTypename | undefined): boolean {
+export function isTypeSecable(typeName: TokenTypeName | undefined): boolean {
   if (!typeName) return false;
-  const entry = tokenMap.get(typeName);
+  const entry = ShTokenMap.get(typeName);
   if (!entry) return false;
   return entry.secable === true;
 }
