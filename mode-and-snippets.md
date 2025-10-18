@@ -1,10 +1,42 @@
 # Modes and snippets
 
-This is brain storming. 
-This will change.
-We add the data types to the existing 
+This is brain storming to introduce many features which
+will induce many structural changes : snippets, modes starting
+by expression mode. Expression mode will start by supporting
+atomic expressions with numbers and naked strings.
+Command completion will be interesting because of different hilite for
+commands/functions/snippet-triggers...
+
+This document is changing very fast.
+We add the data types to the existing
 code without implementing the feature to be sure we understand
-ts logic.
+ts logic of ts types.
+
+All this stuff being data-driven we focus on lang.yml structure now.
+
+## Contextual behavior
+
+The behavior of lushed, the editor for lush supported languages is
+contextual it depends on the [edmode](#lush-edmodes) and the current token.
+This is driven by `lang.yml`.
+
+Our current focus is to develop the Expr edmod, starting supporting
+the Space, NakedString, Number and Variable tokens types, with interpolation
+withing naked string. Special hiliting avoid special syntax like sigils or
+mustache but requires smarter editing. We may go as far as to create
+a NakedYaml
+We want to generate a Acorn tree for a program that prints the result
+of the expression. It will also declare and initializethe var `foo` to 42.
+Supporting operators will come later.
+
+## Lush edmodes
+
+Edmodes
+
+Each mode has its own map of acceptable token types.
+`lang.yml` exposes the available modes which are reloaded
+each time the user changes mode. Programatically the function `setMode`
+changes the current mode.
 
 ## datatypes
 
@@ -13,7 +45,7 @@ A `TokenMultiline` tree has a double role.
 As the data behind the multiline
 and later a nvim buffer it does drive the display of a susy.
 
-But it is already a pre ast meaning it should be trivial to 
+But it is already a pre ast meaning it should be trivial to
 convert it to an astre.
 
 A `TokenMultiLine` is made of `InputToken`s.
@@ -50,12 +82,11 @@ export interface InputToken {
 }
 ```
 
-A `Hiliter` takes no part in edition and its fiels `doesHite` is not serialized 
-or deserialized. 
+A `Hiliter` takes no part in edition and its fiels `doesHite` is not serialized
+or deserialized.
 
-`SnippeitField`s are modal. The mode influences the edition. 
+`SnippeitField`s are modal. The mode influences the edition.
 Only tab and shift tab will move the cursor out of the field.
-
 
 ## Snippets
 

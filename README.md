@@ -18,12 +18,15 @@ docker run -it --rm lush
 ## Lush is special
 
 Work in progress, see [now](#now). See [AGENTS.md](./AGENTS.md) for general
-development intructions. They are for API but are relevant for humans too.
+development instructions. They are for API but are relevant for humans too.
+At early this stage I don't even care to have commits that break everything.
 
 A shell that runs on node. Highlighting is used as primary representation. That
 complexifies slightly the input by the user but that makes code syntax simpler
 and more readable. Most obvious consequences : rejuvenate the concept of naked
-string. The input is encoded as a sequence of tokens.
+string. Hilite as syntax avoid the syntactic complexity of interpolation
+in string (no sigil or [mustache](https://en.wikipedia.org/wiki/Mustache_(template_system)) needed).
+The input is encoded as a sequence of tokens. In fact more like an ast tree.
 
 For ts and svelte, see [augmentations](./Acorn-augmentations.md)
 

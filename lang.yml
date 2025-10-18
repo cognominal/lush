@@ -1,41 +1,62 @@
+# need a way to say a mode inherit tokens from another
+
+tokens:  
+   Space:
+     priority: 0
+modes:
+  Sh: {}
+  Expr:
+    constrained: true
+# for now, just keys for sake of completion 
+snippets:
+   pif: { } # postfix if 
 tokenstypes:
-  Space:
-    priority: 0
-  NakedString:
-    priority: 0
-  Sh.Keyword:
-    instances: if|else|for|while
-    priority: 100
-    secable: true
-  Path:
-    secable: true
-  InvalidPath:
-    secable: true
-  ValidPath:
-    secable: true
-  Sigil: {}
-  Twigil: {}
-  SigillessName: {}
-  PromptChar: {}
-  Number:
-    secable: true
-  HTML.tag: {}
-  HTML.tailwindclass: {}
-  Sh.redirect:
-    secable: true
-  Sh.toExpr:
-    secable: true
-  Sh.builtin:
-    secable: true
-  Sh.commandName:
-    secable: true
-#  BeSmart: {}
-# is input buffer doubling as partial AST, how ?
-# will experiment 
-#    
-  js.program: {}
-  js.ExpressionStatement: {}
-  js.Literal: {}
+  Expr:
+    Space:
+      priority: 0
+    NakedString:
+      priority: 0
+    Number:
+      secable: true
+    Variable:
+  Sh:
+    Space:
+      priority: 0
+    NakedString:
+      priority: 0
+    Sh.Keyword:
+      instances: if|else|for|while
+      priority: 100
+      secable: true
+    Path:
+      secable: true
+    InvalidPath:
+      secable: true
+    ValidPath:
+      secable: true
+    Sigil: {}
+    Twigil: {}
+    SigillessName: {}
+    PromptChar: {}
+    Number:
+      secable: true
+    HTML.tag: {}
+    HTML.tailwindclass: {}
+    Sh.redirect:
+      secable: true
+    Sh.toExpr:
+      secable: true
+    Sh.builtin:
+      secable: true
+    Sh.commandName:
+      secable: true
+  #  BeSmart: {}
+  # is input buffer doubling as partial AST, how ?
+  # will experiment 
+  #    
+    js.program: {}
+    js.ExpressionStatement: {}
+    js.Literal: {}
 hilite:
   Sh.keyword: bold
   ValidPath: green
