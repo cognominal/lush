@@ -16,6 +16,7 @@ export * from "./history.ts";
 export * from "./unparse.ts";
 export * from "./secureHash.ts";
 export * from "./augmentedAcorn.ts";
+export * from "./editor.ts";
 
 export * from "./builtins/directoryStack.ts";
 export * from "./builtins/helpFlags.ts";

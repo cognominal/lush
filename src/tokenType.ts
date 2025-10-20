@@ -1,5 +1,5 @@
 import { tokenText, type InputToken, type TokenLine } from "./tokenLine.ts";
-import { ShTokenMap, type TokenType } from "./tokens.ts";
+import { curTokenMap, type TokenType } from "./tokens.ts";
 
 export const SPACE_TYPE = "Space";
 export const DEFAULT_TEXT_TYPE = "NakedString";
@@ -9,7 +9,7 @@ export function sortedValidTokens(token: InputToken | undefined): TokenType[] {
   const text = tokenText(token);
   if (!text) return [];
 
-  const entries = Array.from(ShTokenMap.values());
+  const entries = Array.from(curTokenMap.values());
   const matches = entries.filter(entry => {
     if (typeof entry?.validator !== "function") return false;
     try {
@@ -40,6 +40,7 @@ export function rotateTokenType(token: InputToken | undefined): boolean {
 export function bestMatchingType(token: InputToken | undefined): string {
   if (!token) return DEFAULT_TEXT_TYPE;
   if (token.type === SPACE_TYPE) return SPACE_TYPE;
+  if (token.type === DEFAULT_TEXT_TYPE) return DEFAULT_TEXT_TYPE;
   const candidates = sortedValidTokens(token);
   return candidates[0]?.type ?? DEFAULT_TEXT_TYPE;
 }

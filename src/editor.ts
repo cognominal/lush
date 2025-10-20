@@ -4,6 +4,7 @@
 //  A line is composed of tokens 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import readline from "node:readline";
 import { spawn, type ChildProcess } from "node:child_process";
 import chalk from 'chalk'
@@ -14,7 +15,6 @@ import {
   type InputToken,
   type TokenLine,
   type TokenMultiLine,
-  type Mode,
   getHighlighter,
   tokenizeLine,
   collectArgumentTexts,
@@ -28,7 +28,8 @@ import {
   suspendForegroundJob,
   suspendShell,
   resumeShell,
-  typeInit,
+  initFromYAMLFile,
+  setTokenMode,
   prompt as buildPrompt,
 } from "./index.ts";
 import {
@@ -46,12 +47,18 @@ import {
   formatStatusLine,
 } from "./index.ts";
 
-enum Mode {
-  Sh,
-  Expr
+export enum Mode {
+  Sh = "Sh",
+  Expr = "Expr"
 }
 
-let mode: Mode = Mode.Sh
+export let mode: Mode = Mode.Sh
+
+export function setMode(m: Mode) {
+  if (mode === m) return;
+  mode = m;
+  setTokenMode(m);
+}
 
 /* ---------------- PATH / executables ---------------- */
 const PATH_DIRS = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
@@ -93,6 +100,8 @@ let lastSpaceAt = 0;
 const SHELL_START_DIR = process.cwd();
 const CTX_WRITE_LOG = path.join(SHELL_START_DIR, "ctx-write.log");
 let ctxWriteLogPrepared = false;
+const LANG_YAML_PATH = fileURLToPath(new URL("../lang.yml", import.meta.url));
+let lastYamlFileMtimeMs = Number.NEGATIVE_INFINITY;
 
 function appendCtxWriteLog(chunk: string) {
   try {
@@ -107,6 +116,20 @@ function appendCtxWriteLog(chunk: string) {
   } catch {
     ctxWriteLogPrepared = false;
   }
+}
+
+function initFromYAMLfileIfchanged(force = false) {
+  let stats: fs.Stats;
+  try {
+    stats = fs.statSync(LANG_YAML_PATH);
+  } catch (error) {
+    if (force) throw error;
+    return;
+  }
+  const currentMtime = stats.mtimeMs;
+  if (!force && currentMtime <= lastYamlFileMtimeMs) return;
+  initFromYAMLFile();
+  lastYamlFileMtimeMs = currentMtime;
 }
 
 
@@ -1122,6 +1145,7 @@ configureJobControl({
 
 /* ---------------- Input loop ---------------- */
 function handleInput(chunk: string) {
+  initFromYAMLfileIfchanged();
   const tokens: EventToken[] = tokenize(chunk);
   for (const t of tokens) {
     if (t.kind === "key") {
@@ -1154,7 +1178,7 @@ function main() {
   process.stdin.setRawMode?.(true);
   process.stdin.resume();
   process.stdin.setEncoding("utf8");
-  typeInit()
+  initFromYAMLfileIfchanged(true);
   renderMline();
 
 }

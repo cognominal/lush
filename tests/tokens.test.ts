@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { typeInit, tokenMap } from "../src/index.ts";
+import { InitFromYAMLFile, tokenMap } from "../src/index.ts";
 
 let numberValidator: ((value: string) => boolean) | undefined;
 let nakedStringValidator: ((value: string) => boolean) | undefined;
 let keywordValidator: ((value: string) => boolean) | undefined;
 
 beforeAll(() => {
-  typeInit();
+  InitFromYAMLFile();
   numberValidator = tokenMap.get("Number")?.validator;
   if (!numberValidator) {
     throw new Error("Number token validator is not registered");

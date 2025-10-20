@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import {
-  typeInit,
+  InitFromYAMLFile,
   rotateTokenType,
   promoteSpaceFromNakedString,
   insertTextIntoTokenLine,
@@ -11,7 +11,7 @@ import {
 } from "../src/index.ts";
 
 beforeAll(async () => {
-  await typeInit();
+  await InitFromYAMLFile();
 });
 
 describe("rotateTokenType", () => {

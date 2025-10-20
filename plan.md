@@ -2,7 +2,7 @@
 
 Keywords : lush, lish, susy, astre
 
-# Decoupling of programs in Astres and Susies
+## Decoupling of programs in Astres and Susies
 
 We (intend to) (de)couple the susy, the Surface Syntax based representation of a
 program and astre its augmented
@@ -10,19 +10,31 @@ program and astre its augmented
 REpresentation with their reliance on
 [UUIDs](https://en.wikipedia.org/wiki/Unique_identifier) for symbols and nodes.
 Simple example of the benefit of the couple susy/astre : renaming a symbol is
-just updating the mapping between its uuid and its name, even if downside it
-affects susys all over the place. But that's the point, susys are just the
-serialization of astres. This interelation between Astres and Susys is designed
+orthogonal with other non renaming commits. It just updates the mapping between a symbol uuid and its name. Displayed susys are automatically affected all over the place.
+But that's the point, susys are just the
+serialization of astres. This interrelation between Astres and Susys is designed
 to foster a greater flexibility of languages and programs, a goal of Larry Wall
 who took natural languages as an inspiration. Susys conventions can be personal,
 be adopted by teams, and eventually go main stream. This should be possible by
 using grit, a would-be git adapted to support astres.
 
 A posh susy is a susy that uses font styling as primary representation. Leste
-will be a posh susy for svelte.
+will be a posh susy for svelte. Posh susy allow to evolve language to
+support better and simpler syntax as shown by naked strings that support
+variable interpolation without special syntax (like mustache or sigil).
+This is the benefit of hilighting as syntax making it a primary notation
+and not only a secondary one.
+
+## Astre are augmented ASTs
+
+We take the idea from [svelte](https://svelte.dev/) which is a web toolkit.
+It is a compiler that works on an augmented Acorn AST to implement
+reactive feature.
+
+## Limitations
 
 All is not rosy though, AST are implementation specific, often even language
-specific, not part of language specifications. Line based diffs, for all their
+specific, not part of language specifications. Line based diffs, despite their
 limitations come for free.
 
 ## 6 main ideas
@@ -34,9 +46,10 @@ help with astres.
 
 - Font styling as primary notation. Tty based edition. Nvim based. Codemirror,
   Monaco next.
-- Interactive shell
+- Interactive shell (see [README](./README.md))
 - Embrace the js/ts ecosystem. Lish on Bun. Later, Leste as a better Svelte
-  Susy.
+  Susy. The idea is not specific to that ecosystem but it will be a good way
+  to popularise it.
 - Indentation and space as syntax
 - Astre, augmented ASTs are the reference representation,
 - Grit, an improved git based on astre diffs instead of line diffs. Allows for a
@@ -48,6 +61,7 @@ This a plan about lush, a would be language inspired by Larry Wall ideas about
 computer languages being as flexible as natural languages. Taken literally, this
 is not an heterodox idea but an heretic one. Dijkstra famously said that natural
 languages used for coding was a bad idea.
+Also lush is not so much a language but an instance of a system.
 
 Natural languages are spoken first, writing them came very late. Computer
 languages are written.
@@ -68,7 +82,7 @@ is left for use to be used as primary notation.
 ## start implementation as an interactive shell
 
 The second idea is: I had to start with what Perl and Raku have never been, but
-should have, an interactive shell. Indeed, language inspired from natural
+should have, an interactive shell. Indeed, languages inspired from natural
 language should have an interactive mode. In that mode we call lush lish, for
 lush interactive shell. This sound suspiciously like yiddish but I won't go to
 sing Klezmer. Starting as a shell, is a good way to bootstrap lush and

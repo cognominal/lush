@@ -1,62 +1,69 @@
-# need a way to say a mode inherit tokens from another
+# top map has `tokens`, `modes`, `snippets`
+# `tokentypes` will be ventilated into `tokens` of mode 
 
-tokens:  
-   Space:
-     priority: 0
-modes:
-  Sh: {}
+defaultTokens: &default
+  Space:
+    priority: 0
+  NakedString:
+    priority: 0
+  Number:
+    secable: true
+    priority: 100
+  Variable:
+    priority: 100
+
+mode:
+  Sh:
+    tokens:
+      <<: *default
+      # so far a string cannot be both a snippet and a keyword
+      # or cycling is necessary
+      SnippetKey:
+        priority: 110
+        instancesFun: ShsnippetKeylist
+      ExprField:
+        placeholder: expression placeholder
+      BlockField:
+        placeholder: block placeholder
+      Sh.Keyword:
+        instances: if|else|for|while
+        priority: 200
+        secable: true
+      Path:
+        secable: true
+      InvalidPath:
+        secable: true
+      ValidPath:
+        secable: true
+      Sigil: {}
+      Twigil: {}
+      SigillessName: {}
+      PromptChar: {}
+      Sh.redirect:
+        secable: true
+      Sh.toExpr:
+        secable: true
+      Sh.builtin:
+        secable: true
+      Sh.commandName:
+        secable: true
+      js.program: {}
+      js.ExpressionStatement: {}
+      js.Literal: {}
   Expr:
     constrained: true
-# for now, just keys for sake of completion 
+    tokens:
+      <<: *default
+# for now, just keys for sake of completion using shift-tab
+# tab will be used for the expansion of snippeys 
 snippets:
-   pif: { } # postfix if 
-tokenstypes:
-  Expr:
-    Space:
-      priority: 0
-    NakedString:
-      priority: 0
-    Number:
-      secable: true
-    Variable:
-  Sh:
-    Space:
-      priority: 0
-    NakedString:
-      priority: 0
-    Sh.Keyword:
-      instances: if|else|for|while
-      priority: 100
-      secable: true
-    Path:
-      secable: true
-    InvalidPath:
-      secable: true
-    ValidPath:
-      secable: true
-    Sigil: {}
-    Twigil: {}
-    SigillessName: {}
-    PromptChar: {}
-    Number:
-      secable: true
-    HTML.tag: {}
-    HTML.tailwindclass: {}
-    Sh.redirect:
-      secable: true
-    Sh.toExpr:
-      secable: true
-    Sh.builtin:
-      secable: true
-    Sh.commandName:
-      secable: true
-  #  BeSmart: {}
-  # is input buffer doubling as partial AST, how ?
-  # will experiment 
-  #    
-    js.program: {}
-    js.ExpressionStatement: {}
-    js.Literal: {}
+  sh:
+    pif:
+      what: postfix if statement
+      expansion:
+    rif:
+      what: if statement
+
 hilite:
   Sh.keyword: bold
   ValidPath: green
@@ -65,6 +72,7 @@ hilite:
   Number: blue
   Sh.commandName: italic
   Sh.builtin: bold.blue
+  SnippetKey: bold.red
 
 magicStr:
   shellMode:

@@ -6,6 +6,7 @@ export interface InputToken {
   text?: string; // missing for types that have subtypes
   subTokens?: InputToken[];
   x?: number;
+  Snippetexpanded?: boolean // so it is a keyword 
 }
 
 export type TokenLine = InputToken[];

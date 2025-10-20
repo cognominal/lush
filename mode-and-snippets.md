@@ -97,7 +97,7 @@ generated.
 
 ### Snippets and mode
 
-For dev purpose, we will create a plugin set the mode to expression.
+For dev purpose, we will create a plugin to set the mode to expression.
 
 ### Editing a Snippet
 

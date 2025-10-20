@@ -17,20 +17,31 @@ docker run -it --rm lush
 
 ## Lush is special
 
-Work in progress, see [now](#now). See [AGENTS.md](./AGENTS.md) for general
-development instructions. They are for API but are relevant for humans too.
-At early this stage I don't even care to have commits that break everything.
-
 A shell that runs on node. Highlighting is used as primary representation. That
 complexifies slightly the input by the user but that makes code syntax simpler
 and more readable. Most obvious consequences : rejuvenate the concept of naked
-string. Hilite as syntax avoid the syntactic complexity of interpolation
-in string (no sigil or [mustache](https://en.wikipedia.org/wiki/Mustache_(template_system)) needed).
+string. Hilite as syntax avoids the syntactic complexity of variables
+(may be expression) interpolation
+in string (no sigil or
+[mustache](https://en.wikipedia.org/wiki/Mustache_(template_system)) needed).
 The input is encoded as a sequence of tokens. In fact more like an ast tree.
 
 For ts and svelte, see [augmentations](./Acorn-augmentations.md)
 
-TBD html, to demonstrate the shell in action. I have a builtin for that
+# Work in progress
+
+See [now](#now). See [AGENTS.md](./AGENTS.md) for general
+development instructions. They are for API but are relevant for humans too.
+At early this stage I don't even care to have commits that break everything.
+Also lush is just a way to bootstrap a more ambitious project.
+See [plan](./plan.md)
+
+# Implementing
+
+At this point, this  README is about the implementation spec. As the guide for
+codex to generate code.
+
+TBD html, to demonstrate the shell in action. I have a builtin for that.
 
 See [naked strings](#naked-strings-cool-again-no-poisoned-apple) (TBD). We focus
 now on features more than configurability.
@@ -43,6 +54,11 @@ is now
 [unparse.ts](./src/unparse.ts)`. More info [here](./unparsing.md). But that's
 for [later](#more-long-term). See [.secureHash.ts](src/secureHash.ts) for uuids.
 
+## Data driven
+
+Lushed (currently a multi line editor for the lish shell)
+is data driven by `lang.yml`
+
 ## Token editing
 
 The multiline editor mutates existing `InputToken`s instead of rebuilding a
@@ -54,9 +70,16 @@ concatenation of child token texts. This behaviour lives in
 [src/tokenEdit.ts](src/tokenEdit.ts) and lets highlighting and token metadata
 survive incremental edits without re-tokenizing the entire line.
 
+## Mode and Token Types
+
+The editor is modal depending on what we are currently editing.
+In a given mode, just a certain set of token types is allowed.
+When the mode is changed with `setMode` when entering certain places
+we update the map `curTokenMap`
+
 ## Planned/Done
 
-This is the detailled plan. For the general plane, see [plan](./plan.md)
+This is the detailed plan. For the general plane, see [plan](./plan.md)
 
 Currently, we do lush as a command line editor. We want to know how far we can
 go without structural editing. For structural editing, we should thing of an API

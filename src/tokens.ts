@@ -4,18 +4,6 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Mode } from './index.ts'
 
-/*
- * Logic to handle token registration and typing
- *  In src/editor.ts 
- *   typing 2 spaces in rapid succession cycle the type of the previous token and higlight it accordingly.
- *
- * 
- * 
- *    
- */
-
-
-
 
 export enum OprType {
   Binary,
@@ -64,9 +52,12 @@ export type HiliterType = (s: string) => string
 // export type hiliteMapType = Map<PreAstType, HiliterType>
 
 export const oprMap: OprMapType = new Map()
-export const ShTokenMap: TokenMapType = new Map()
-export const tokenMap = ShTokenMap
+export const curTokenMap: TokenMapType = new Map()
+export const tokenMap = curTokenMap
 export const TokenMaps: TokenMapsType = new Map()
+
+let runtimeModeName: ModeName = "Sh";
+let cachedHiliteFns: Map<TokenTypeName, (s: string) => string> = new Map();
 
 // export const hiliteMap: HiliteMapType = new Map()
 
@@ -101,95 +92,199 @@ function isValidJsNumberLiteral(value: string): boolean {
   return NUMBER_LITERAL_PATTERN.test(value);
 }
 
-export function registerOpr(s: string, type: OprType, s1?: string) {
-  oprMap.set(s, s1 ? { type, s } : { type, s, s1 })
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+  return value as Record<string, unknown>;
 }
 
-export function registerToken(t: TokenType): void {
-  ShTokenMap.set(t.type, t)
-}
-
-
-export function typeInit(): void {
-  const langPath = fileURLToPath(new URL('../lang.yml', import.meta.url))
-  const yaml = readFileSync(langPath, 'utf-8')
-  const data = YAML.load(yaml)
-  const rawTokenTypes = (data as any)?.tokenstypes
-  const tokenTypeEntries = rawTokenTypes && typeof rawTokenTypes === 'object' && !Array.isArray(rawTokenTypes)
-    ? Object.entries(rawTokenTypes as Record<string, unknown>)
-    : []
-
-  for (const [typeName, spec] of tokenTypeEntries) {
-    if (typeof typeName !== 'string' || !typeName) continue
-    const entry: TokenYamlSpec = spec && typeof spec === 'object' ? spec as TokenYamlSpec : {}
-    const priorityValue = entry.priority
-    const priority = typeof priorityValue === 'number' ? priorityValue : 0
-    const existing: TokenType = ShTokenMap.get(typeName) ?? { type: typeName, priority }
-    existing.priority = priority
-    if ('secable' in entry) {
+function populateTokenMap(
+  target: TokenMapType,
+  specEntries: Record<string, unknown>,
+): void {
+  for (const [typeName, spec] of Object.entries(specEntries)) {
+    if (typeof typeName !== 'string' || !typeName) continue;
+    const entry = asRecord(spec) as TokenYamlSpec | undefined;
+    const priorityValue = entry?.priority;
+    const priority = typeof priorityValue === 'number' ? priorityValue : 0;
+    const existing: TokenType =
+      target.get(typeName) ?? { type: typeName, priority };
+    existing.priority = priority;
+    if (entry && 'secable' in entry) {
       existing.secable = Boolean(entry.secable);
     } else if (existing.secable === undefined) {
       existing.secable = false;
     }
-    const instanceSpec = entry.instances
-    let parsedInstances: string[] | undefined
+    const instanceSpec = entry?.instances;
+    let parsedInstances: string[] | undefined;
     if (typeof instanceSpec === 'string') {
-      parsedInstances = instanceSpec.split("|").map(s => s.trim()).filter(Boolean);
+      parsedInstances = instanceSpec
+        .split('|')
+        .map((s) => s.trim())
+        .filter(Boolean);
     } else if (Array.isArray(instanceSpec)) {
-      parsedInstances = instanceSpec.map(s => typeof s === 'string' ? s.trim() : '').filter(Boolean);
+      parsedInstances = instanceSpec
+        .map((s) => (typeof s === 'string' ? s.trim() : ''))
+        .filter(Boolean);
     }
     if (parsedInstances && parsedInstances.length) {
       existing.instances = parsedInstances;
     }
-    if (typeof entry.validator === 'function') {
-      existing.validator = entry.validator as (s: string) => boolean
+    if (entry && typeof entry.validator === 'function') {
+      existing.validator = entry.validator as (s: string) => boolean;
     }
     if (!existing.validator && existing.instances?.length) {
       const allowed = new Set(existing.instances);
       existing.validator = (value: string) => allowed.has(value);
     }
-    ShTokenMap.set(typeName, existing)
-  }
-
-  const numberToken = ShTokenMap.get("Number") ?? { type: "Number", priority: 0 }
-  numberToken.validator = isValidJsNumberLiteral
-  ShTokenMap.set("Number", numberToken)
-
-  const nakedStringToken = ShTokenMap.get(NAKED_STRING_TYPE)
-  if (nakedStringToken) {
-    nakedStringToken.validator = () => true
-    ShTokenMap.set(NAKED_STRING_TYPE, nakedStringToken)
-  }
-
-  const hiliteEntries = (data as any)?.hilite
-  if (!hiliteEntries || typeof hiliteEntries !== 'object') return
-
-  for (const [typeName, hiliteSpec] of Object.entries(hiliteEntries as Record<string, unknown>)) {
-    if (typeof hiliteSpec !== 'string' || !typeName) continue
-    const steps = hiliteSpec.split('.').map((step) => step.trim()).filter(Boolean)
-    if (!steps.length) continue
-
-    let current: any = chalk
-    for (const step of steps) {
-      if (current == null) break
-      current = current[step]
-    }
-
-    if (typeof current !== 'function') continue
-    const hiliteFn = (s: string) => current(s)
-    const token = ShTokenMap.get(typeName) ?? { type: typeName, priority: 0 }
-    token.hilite = hiliteFn
-    ShTokenMap.set(typeName, token)
+    target.set(typeName, existing);
   }
 }
 
+function buildHiliteFn(spec: unknown): ((s: string) => string) | undefined {
+  if (typeof spec !== 'string') return;
+  const steps = spec
+    .split('.')
+    .map((step) => step.trim())
+    .filter(Boolean);
+  if (!steps.length) return;
+  let current: any = chalk;
+  for (const step of steps) {
+    if (current == null) return;
+    current = current[step];
+  }
+  if (typeof current !== 'function') return;
+  return (s: string) => current(s);
+}
+
+function applyDefaultValidators(target: TokenMapType): void {
+  const numberToken =
+    target.get("Number") ?? { type: "Number", priority: 0 };
+  numberToken.validator = isValidJsNumberLiteral;
+  target.set("Number", numberToken);
+
+  const nakedStringToken = target.get(NAKED_STRING_TYPE);
+  if (nakedStringToken) {
+    nakedStringToken.validator = () => true;
+    target.set(NAKED_STRING_TYPE, nakedStringToken);
+  }
+}
+
+function applyHilites(
+  target: TokenMapType,
+  hiliteFns: Map<string, (s: string) => string>,
+): void {
+  for (const [typeName, hiliteFn] of hiliteFns.entries()) {
+    const token = target.get(typeName);
+    if (!token) continue;
+    token.hilite = hiliteFn;
+    target.set(typeName, token);
+  }
+}
+
+export function registerOpr(s: string, type: OprType, s1?: string) {
+  oprMap.set(s, s1 ? { type, s } : { type, s, s1 })
+}
+
+export function registerToken(t: TokenType): void {
+  curTokenMap.set(t.type, t)
+}
+
+export let YAMLdata; // set when reading file
+
+function cloneTokenMap(
+  source: TokenMapType | undefined,
+  target: TokenMapType,
+): void {
+  target.clear();
+  if (!source) return;
+  for (const [typeName, tokenType] of source.entries()) {
+    target.set(typeName, tokenType);
+  }
+}
+
+function applyActiveModeFromCache(): void {
+  const selected = TokenMaps.get(runtimeModeName);
+  cloneTokenMap(selected, curTokenMap);
+  applyDefaultValidators(curTokenMap);
+  if (cachedHiliteFns.size) {
+    applyHilites(curTokenMap, cachedHiliteFns);
+  }
+}
+
+export function setTokenMode(modeName: ModeName): void {
+  runtimeModeName = modeName;
+  applyActiveModeFromCache();
+}
+
+// called when changing mode to set maps
+function initFromYAMLdata() {
+  TokenMaps.clear();
+  curTokenMap.clear();
+
+  const root = asRecord(YAMLdata);
+  if (!root) return;
+
+  const modeSection = asRecord(root.mode);
+
+  const hiliteEntries = asRecord(root.hilite);
+  const hiliteFns = new Map<TokenTypeName, (s: string) => string>();
+  if (hiliteEntries) {
+    for (const [typeName, spec] of Object.entries(hiliteEntries)) {
+      if (typeof typeName !== 'string' || !typeName) continue;
+      const fn = buildHiliteFn(spec);
+      if (!fn) continue;
+      hiliteFns.set(typeName, fn);
+    }
+  }
+  cachedHiliteFns = hiliteFns;
+
+  const yamlModeValue = modeSection?.curMode;
+  const yamlModeName =
+    typeof yamlModeValue === 'string' && yamlModeValue.length > 0
+      ? yamlModeValue
+      : undefined;
+  const activeMode: ModeName = yamlModeName ?? runtimeModeName;
+  runtimeModeName = activeMode;
+
+  if (modeSection) {
+    for (const [modeName, value] of Object.entries(modeSection)) {
+      const modeRecord = asRecord(value);
+      if (!modeRecord) continue;
+      const tokensSpec = asRecord(modeRecord.tokens);
+      if (!tokensSpec) continue;
+      let target = TokenMaps.get(modeName);
+      if (!target) {
+        target = new Map<TokenTypeName, TokenType>();
+        TokenMaps.set(modeName, target);
+      }
+      populateTokenMap(target, tokensSpec);
+    }
+  }
+
+  for (const map of TokenMaps.values()) {
+    applyDefaultValidators(map);
+    if (hiliteFns.size) applyHilites(map, hiliteFns);
+  }
+
+  applyActiveModeFromCache();
+}
+
+export function initFromYAMLFile(): void {
+  const langPath = fileURLToPath(new URL('../lang.yml', import.meta.url))
+  const yaml = readFileSync(langPath, 'utf-8')
+  YAMLdata = YAML.load(yaml)
+  initFromYAMLdata()
+}
+
+export const InitFromYAMLFile = initFromYAMLFile;
+
 export function getHighlighter(type: TokenTypeName): (s: string) => string {
-  return ShTokenMap.get(type)?.hilite ?? String;
+  return curTokenMap.get(type)?.hilite ?? String;
 }
 
 export function isTypeSecable(typeName: TokenTypeName | undefined): boolean {
   if (!typeName) return false;
-  const entry = ShTokenMap.get(typeName);
+  const entry = curTokenMap.get(typeName);
   if (!entry) return false;
   return entry.secable === true;
 }
