@@ -4,6 +4,7 @@
 defaultTokens: &default
   Space:
     priority: 0
+    validator: true
   NakedString:
     priority: 0
   Number:
@@ -11,6 +12,11 @@ defaultTokens: &default
     priority: 100
   Variable:
     priority: 100
+  StatementSnipField:
+    priority: 100
+  ExprSnipField:
+    priority: 100
+  Snippettrigger:
 
 mode:
   Sh:
@@ -18,19 +24,17 @@ mode:
       <<: *default
       # so far a string cannot be both a snippet and a keyword
       # or cycling is necessary
-      SnippetKey:
-        priority: 110
-        instancesFun: ShsnippetKeylist
       ExprField:
         placeholder: expression placeholder
       BlockField:
         placeholder: block placeholder
-      Sh.Keyword:
+      ShKeyword:
         instances: if|else|for|while
+        priority: 500
+        secable: true
+      Folder:
         priority: 200
-        secable: true
       Path:
-        secable: true
       InvalidPath:
         secable: true
       ValidPath:
@@ -39,17 +43,17 @@ mode:
       Twigil: {}
       SigillessName: {}
       PromptChar: {}
-      Sh.redirect:
+      ShRedirect:
         secable: true
-      Sh.toExpr:
+      ShToExpr:
         secable: true
-      Sh.builtin:
+      ShBuiltin:
         secable: true
-      Sh.commandName:
-        secable: true
-      js.program: {}
-      js.ExpressionStatement: {}
-      js.Literal: {}
+      ShCommandName:
+        priority: 1000
+      jsProgram: {}
+      jsExpressionStatement: {}
+      jsLiteral:  {}
   Expr:
     constrained: true
     tokens:
@@ -60,9 +64,12 @@ snippets:
   sh:
     pif:
       what: postfix if statement
-      expansion:
+      expansion:  
     rif:
       what: if statement
+      expansion: ExprField
+    x:
+      what: expression
 
 hilite:
   Sh.keyword: bold

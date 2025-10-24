@@ -1,5 +1,5 @@
 import { tokenText, type InputToken, type TokenLine } from "./tokenLine.ts";
-import { curTokenMap, type TokenType } from "./tokens.ts";
+import { tokenMap, type TokenType } from "./tokens.ts";
 
 export const SPACE_TYPE = "Space";
 export const DEFAULT_TEXT_TYPE = "NakedString";
@@ -9,7 +9,7 @@ export function sortedValidTokens(token: InputToken | undefined): TokenType[] {
   const text = tokenText(token);
   if (!text) return [];
 
-  const entries = Array.from(curTokenMap.values());
+  const entries = Array.from(tokenMap.values());
   const matches = entries.filter(entry => {
     if (typeof entry?.validator !== "function") return false;
     try {

@@ -70,12 +70,18 @@ concatenation of child token texts. This behaviour lives in
 [src/tokenEdit.ts](src/tokenEdit.ts) and lets highlighting and token metadata
 survive incremental edits without re-tokenizing the entire line.
 
+Submission mirrors shell enter semantics. `Enter` inserts newlines by default,
+but when the cursor sits on the final empty line of a command that already has
+content on earlier lines it submits the buffer. Pressing `Enter` with a fully
+empty buffer keeps editing in insert mode and rings the bell instead of
+running.
+
 ## Mode and Token Types
 
 The editor is modal depending on what we are currently editing.
 In a given mode, just a certain set of token types is allowed.
 When the mode is changed with `setMode` when entering certain places
-we update the map `curTokenMap`
+we update the map `tokenMap`
 
 ## Planned/Done
 

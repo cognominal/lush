@@ -26,5 +26,6 @@
 - **Delete** (`deleteChar`): Delete the char under the cursor.
 - **Backspace** (`backwardDeleteChar`): Delete the char before the cursor and
   merge lines if needed.
-- **Enter** (`insertNewline`): Insert a newline within the current buffer.
+- **Enter** (`enterAction`): Insert a newline, or submit when the cursor is on
+  the final empty line of a multi-line command.
 - **Cmd+Enter** (`acceptLine`): Submit the buffer; run the command or echo it.

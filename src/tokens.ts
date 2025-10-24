@@ -43,7 +43,7 @@ export type TokenTypeName = string
 export type ModeName = string
 //  + for example can be both prefix or infix so the `[Opr]`
 export type OprMapType = Map<string, Opr | [Opr]>
-// 2 separate maptyprd for the same keytype cuz hiliting is 
+// 2 separate maptypes for the same keytype cuz hiliting is 
 // more a user thing and tokens a language thing
 export type TokenMapType = Map<TokenTypeName, TokenType>
 export type TokenMapsType = Map<ModeName, TokenMapType>
@@ -52,8 +52,7 @@ export type HiliterType = (s: string) => string
 // export type hiliteMapType = Map<PreAstType, HiliterType>
 
 export const oprMap: OprMapType = new Map()
-export const curTokenMap: TokenMapType = new Map()
-export const tokenMap = curTokenMap
+export const tokenMap: TokenMapType = new Map()
 export const TokenMaps: TokenMapsType = new Map()
 
 let runtimeModeName: ModeName = "Sh";
@@ -186,10 +185,10 @@ export function registerOpr(s: string, type: OprType, s1?: string) {
 }
 
 export function registerToken(t: TokenType): void {
-  curTokenMap.set(t.type, t)
+  tokenMap.set(t.type, t)
 }
 
-export let YAMLdata; // set when reading file
+export let YAMLdata: unknown; // set when reading file
 
 function cloneTokenMap(
   source: TokenMapType | undefined,
@@ -204,10 +203,10 @@ function cloneTokenMap(
 
 function applyActiveModeFromCache(): void {
   const selected = TokenMaps.get(runtimeModeName);
-  cloneTokenMap(selected, curTokenMap);
-  applyDefaultValidators(curTokenMap);
+  cloneTokenMap(selected, tokenMap);
+  applyDefaultValidators(tokenMap);
   if (cachedHiliteFns.size) {
-    applyHilites(curTokenMap, cachedHiliteFns);
+    applyHilites(tokenMap, cachedHiliteFns);
   }
 }
 
@@ -219,7 +218,7 @@ export function setTokenMode(modeName: ModeName): void {
 // called when changing mode to set maps
 function initFromYAMLdata() {
   TokenMaps.clear();
-  curTokenMap.clear();
+  tokenMap.clear();
 
   const root = asRecord(YAMLdata);
   if (!root) return;
@@ -279,12 +278,12 @@ export function initFromYAMLFile(): void {
 export const InitFromYAMLFile = initFromYAMLFile;
 
 export function getHighlighter(type: TokenTypeName): (s: string) => string {
-  return curTokenMap.get(type)?.hilite ?? String;
+  return tokenMap.get(type)?.hilite ?? String;
 }
 
 export function isTypeSecable(typeName: TokenTypeName | undefined): boolean {
   if (!typeName) return false;
-  const entry = curTokenMap.get(typeName);
+  const entry = tokenMap.get(typeName);
   if (!entry) return false;
   return entry.secable === true;
 }

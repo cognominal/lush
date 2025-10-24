@@ -31,6 +31,7 @@ import {
   initFromYAMLFile,
   setTokenMode,
   prompt as buildPrompt,
+  shouldSubmitOnEmptyLastLine,
 } from "./index.ts";
 import {
   insertTextIntoTokenLine,
@@ -88,10 +89,6 @@ const HISTORY_FILE = getHistoryFilePath();
 const history: HistoryEntry[] = loadHistoryEntries(HISTORY_FILE);
 let histIdx = -1; // -1: no history selection
 let inputLocked = false;
-
-const DOUBLE_ENTER_THRESHOLD_MS = 350;
-let pendingEnterCount = 0;
-let lastEnterAt = 0;
 
 const DOUBLE_SPACE_THRESHOLD_MS = 350;
 let pendingSpaceCount = 0;
@@ -166,13 +163,6 @@ function lineText(line: TokenLine | undefined): string {
 
 function lineLength(line: TokenLine | undefined): number {
   return lineText(line).length
-}
-
-function bufferHasContent(): boolean {
-  for (const line of lines) {
-    if (lineText(line).trim().length > 0) return true
-  }
-  return false
 }
 
 type TokenSpan = { start: number; end: number; token: InputToken }
@@ -751,10 +741,7 @@ function backwardToken() {
   colIdx = 0;
   renderMline();
 }
-function resetEnterSequence() {
-  pendingEnterCount = 0;
-  lastEnterAt = 0;
-}
+function resetEnterSequence() {}
 function resetSpaceSequence() {
   pendingSpaceCount = 0;
   lastSpaceAt = 0;
@@ -904,23 +891,19 @@ function insertNewline() {
   renderMline();
 }
 function enterAction() {
-  const now = Date.now();
-  if (now - lastEnterAt <= DOUBLE_ENTER_THRESHOLD_MS) {
-    pendingEnterCount++;
-  } else {
-    pendingEnterCount = 1;
-  }
-  lastEnterAt = now;
+  const currentLine = getLine(lineIdx);
+  const isEmptyLine = lineLength(currentLine) === 0;
+  const isLastLine = lineIdx === lines.length - 1;
 
-  if (pendingEnterCount >= 2) {
-    const hasContent = bufferHasContent();
-    resetEnterSequence();
-    if (!hasContent) {
+  if (isEmptyLine && isLastLine) {
+    if (shouldSubmitOnEmptyLastLine(lines, lineIdx)) {
+      acceptLine();
+    } else if (lines.length === 1) {
+      insertNewline();
+    } else {
       process.stdout.write('\u0007');
       renderMline();
-      return;
     }
-    acceptLine();
     return;
   }
 

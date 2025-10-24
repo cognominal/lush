@@ -15,7 +15,9 @@ beforeAll(() => {
   if (!nakedStringValidator) {
     throw new Error("NakedString token validator is not registered");
   }
-  keywordValidator = tokenMap.get("Sh.Keyword")?.validator;
+  const keywordEntry =
+    tokenMap.get("ShKeyword") ?? tokenMap.get("Sh.Keyword");
+  keywordValidator = keywordEntry?.validator;
 });
 
 function ensureValidator(): (value: string) => boolean {
