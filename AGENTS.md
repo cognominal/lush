@@ -33,6 +33,7 @@ Internal modules must be imported via `src/index.ts`; add re-exports there
 (e.g. `export * from "./augmentedAcorn.ts";`) before using new symbols. The
 bootstrap file `src/builtins.ts` is the lone exception so the registry can
 initialize without circular imports.
+For interacting with the terminal, use the chalk library, not magic escape sequences.
 
 ## Testing Guidelines
 

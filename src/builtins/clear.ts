@@ -3,11 +3,11 @@ import {
   registerBuiltinHelp,
   type BuiltinContext,
   detectHelpLevel,
+  clearTerminal,
 } from "../index.ts";
 
 const SINGLE_HELP = "Clear the interactive screen.";
 const DETAILED_HELP = "usage: clear\nErases the visible terminal content and moves the cursor to the top-left.";
-const CLEAR_SEQUENCE = "\u001b[2J\u001b[H";
 
 registerBuiltin("clear", (ctx: BuiltinContext) => {
   const helpLevel = detectHelpLevel(ctx);
@@ -25,7 +25,7 @@ registerBuiltin("clear", (ctx: BuiltinContext) => {
     return;
   }
 
-  ctx.write(CLEAR_SEQUENCE);
+  clearTerminal(process.stdout);
 });
 
 registerBuiltinHelp("clear", "Clear the screen");

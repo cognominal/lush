@@ -16,7 +16,7 @@ defaultTokens: &default
     priority: 100
   ExprSnipField:
     priority: 100
-  Snippettrigger:
+  SnippetTrigger:
 
 mode:
   Sh:
@@ -24,8 +24,12 @@ mode:
       <<: *default
       # so far a string cannot be both a snippet and a keyword
       # or cycling is necessary
+
+      SvelteField:
+        placeholder: svelte placeholder
       ExprField:
         placeholder: expression placeholder
+        mode: Expr
       BlockField:
         placeholder: block placeholder
       ShKeyword:
@@ -34,6 +38,8 @@ mode:
         secable: true
       Folder:
         priority: 200
+      TypeScriptSymbol:
+        priority: 150
       Path:
       InvalidPath:
         secable: true
@@ -58,6 +64,11 @@ mode:
     constrained: true
     tokens:
       <<: *default
+  Svelte:
+    constrained: true
+    tokens:
+      <<: *default
+
 # for now, just keys for sake of completion using shift-tab
 # tab will be used for the expansion of snippeys 
 snippets:
@@ -70,16 +81,36 @@ snippets:
       expansion: ExprField
     x:
       what: expression
+    sv:
+      what: svelte code
 
 hilite:
-  Sh.keyword: bold
-  ValidPath: green
-  InvalidPath: red
-  NakedString: bgGray.white
+  Space: dim
+  NakedString: white
   Number: blue
-  Sh.commandName: italic
-  Sh.builtin: bold.blue
-  SnippetKey: bold.red
+  Variable: cyan
+  StatementSnipField: bold.magenta
+  ExprSnipField: italic.magentaBright
+  SnippetTrigger: underline.yellow
+  ExprField: italic.cyan
+  BlockField: italic.green
+  ShKeyword: bold.green
+  Folder: bold.yellow
+  TypeScriptSymbol: italic.blue
+  Path: underline.blue
+  InvalidPath: bold.red
+  ValidPath: bold.greenBright
+  Sigil: bold.cyanBright
+  Twigil: bold.magentaBright
+  SigillessName: italic.white
+  PromptChar: bold.white
+  ShRedirect: bold.redBright
+  ShToExpr: bold.yellowBright
+  ShBuiltin: bold.blueBright
+  ShCommandName: bold.cyan
+  jsProgram: italic.gray
+  jsExpressionStatement: italic.yellow
+  jsLiteral: italic.greenBright
 
 magicStr:
   shellMode:

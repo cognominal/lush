@@ -7,12 +7,13 @@ import type { HistoryEntry } from "../src/index.ts";
 process.env.FORCE_COLOR = process.env.FORCE_COLOR ?? "1";
 
 const { default: chalk } = await import("chalk");
+const indexModule = await import("../src/index.ts");
 const {
   chalkHtml,
   getBuiltin,
   clearDirectoryStack,
   getDirectoryStack,
-} = await import("../src/index.ts");
+} = indexModule;
 
 const realCwd = process.cwd();
 let currentDir = realCwd;
@@ -174,9 +175,14 @@ describe("clear builtin", () => {
     return chunks.join("");
   };
 
-  it("emits ANSI clear sequence with no arguments", () => {
+  it("clears the terminal with no arguments", () => {
+    const spy = vi
+      .spyOn(indexModule, "clearTerminal")
+      .mockImplementation(() => {});
     const output = invoke();
-    expect(output).toBe("\u001b[2J\u001b[H");
+    expect(spy).toHaveBeenCalledWith(process.stdout);
+    expect(output).toBe("");
+    spy.mockRestore();
   });
 
   it("rejects unexpected arguments", () => {

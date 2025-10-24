@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import chalk from "chalk";
 
-const { formatStatusLine } = await import("../src/index.ts");
+const { formatStatusLine, getHighlighter } = await import("../src/index.ts");
 
 describe("formatStatusLine", () => {
   it("renders the treepath, mode, and token index with candidates", () => {
@@ -13,14 +13,20 @@ describe("formatStatusLine", () => {
       modeLabel: "sh",
       currentTokenType: "Number",
       currentTokenIndex: 0,
+      currentTokenLength: 2,
+      currentTokenText: "42",
       validTypes: candidates,
     });
 
     expect(rendered.startsWith(`${chalk.bold("treepath:")} TBD`)).toBe(true);
     expect(rendered).toContain(`${chalk.bold("mode:")} sh`);
-    expect(rendered).toContain(`${chalk.bold("tokidx:")}  0`);
+    expect(rendered).toContain(`${chalk.bold("tokidx:")} 0`);
+    expect(rendered).toContain(`${chalk.bold("len:")} 2`);
     expect(rendered).toContain("Number");
-    expect(rendered).toContain(chalk.gray("Word"));
+    expect(rendered).toContain(chalk.dim("Word"));
+    expect(rendered).toContain(`${chalk.bold("token:")}`);
+    const numberHilite = getHighlighter("Number");
+    expect(rendered).toContain(`'${numberHilite("42")}'`);
     expect(rendered).toContain(chalk.bold("types:"));
   });
 
@@ -29,12 +35,16 @@ describe("formatStatusLine", () => {
       modeLabel: "expr",
       currentTokenType: "Identifier",
       currentTokenIndex: null,
+      currentTokenLength: null,
+      currentTokenText: "value",
       validTypes: [],
     });
 
     expect(rendered).toContain(`${chalk.bold("mode:")} expr`);
-    expect(rendered).toContain(`${chalk.bold("tokidx:")}  -`);
+    expect(rendered).toContain(`${chalk.bold("tokidx:")} -`);
+    expect(rendered).toContain(`${chalk.bold("len:")} -`);
     expect(rendered).toContain(chalk.inverse("Identifier"));
+    expect(rendered).toContain("'value'");
     expect(rendered).toContain(chalk.bold("types:"));
   });
 
@@ -43,10 +53,13 @@ describe("formatStatusLine", () => {
       modeLabel: "sh",
       currentTokenType: null,
       currentTokenIndex: -1,
+      currentTokenLength: -1,
+      currentTokenText: null,
       validTypes: [],
     });
 
     expect(rendered).toContain(chalk.dim("no types"));
-    expect(rendered).toContain(`${chalk.bold("tokidx:")}  -`);
+    expect(rendered).toContain(`${chalk.bold("tokidx:")} -`);
+    expect(rendered).toContain(`${chalk.bold("token:")} ${chalk.dim("none")}`);
   });
 });

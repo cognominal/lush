@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { TokenType } from "./tokens.ts";
+import { getHighlighter, type TokenType } from "./tokens.ts";
 
 export function isStrNumber(input: string): boolean {
   if (typeof input !== "string") return false;
@@ -64,6 +64,7 @@ export interface StatusLineParams {
   currentTokenType?: string | null;
   currentTokenIndex?: number | null;
   currentTokenLength?: number | null;
+  currentTokenText?: string | null;
   validTypes: readonly TokenType[];
 }
 
@@ -85,30 +86,71 @@ function buildTypeDisplay(
     .map(entry => {
       const label = entry?.type;
       if (!label) return "";
-      return label === currentType ? label : chalk.gray(label);
+      const hilite = getHighlighter(label);
+      const styled = hilite(label);
+      return label === currentType ? chalk.bold(styled) : chalk.dim(styled);
     })
     .filter(part => Boolean(part));
 
   if (highlighted.length) {
-    return highlighted.join("     ");
+    return highlighted.join("  ");
   }
 
   const fallback = typeof currentType === "string" ? currentType : "";
   if (fallback && fallback !== "-") {
-    return chalk.inverse(fallback);
+    const hilite = getHighlighter(fallback);
+    return chalk.inverse(hilite(fallback));
   }
   return chalk.dim("no types");
+}
+
+const TOKEN_PREVIEW_LIMIT = 24;
+
+function formatTokenPreview(
+  tokenType: string | null | undefined,
+  tokenText: string | null | undefined,
+): string | null {
+  if (tokenText == null) return null;
+  const hilite = tokenType ? getHighlighter(tokenType) : (value: string) => value;
+  const rendered = hilite(tokenText);
+  return `'${rendered}'`;
+}
+
+function formatCurrentType(
+  tokenType: string | null | undefined,
+): string | null {
+  if (!tokenType) return null;
+  const hilite = getHighlighter(tokenType);
+  return hilite(tokenType);
 }
 
 export function formatStatusLine({
   modeLabel,
   currentTokenType,
   currentTokenIndex,
+  currentTokenLength,
+  currentTokenText,
   validTypes,
 }: StatusLineParams): string {
-  const treepath = `${chalk.bold('treepath:')} TBD   `
+  const treepath = `${chalk.bold("treepath:")} TBD`;
   const indexLabel = formatTokenIndex(currentTokenIndex ?? null);
-  const statusInfo = `${chalk.bold('mode:')} ${modeLabel}    ${chalk.bold('tokidx:')}  ${indexLabel}`;
+  const lengthLabel = formatTokenLength(currentTokenLength ?? null);
+  const statusInfo = [
+    `${chalk.bold("mode:")} ${modeLabel}`,
+    `${chalk.bold("tokidx:")} ${indexLabel}`,
+    `${chalk.bold("len:")} ${lengthLabel}`,
+  ].join("    ");
   const typeDisplay = buildTypeDisplay(currentTokenType ?? null, validTypes);
-  return `${treepath} ${statusInfo}          ${chalk.bold("types:")} ${typeDisplay}`;
+  const tokenTypeLabel = formatCurrentType(currentTokenType ?? null);
+  const tokenPreview = formatTokenPreview(
+    currentTokenType ?? null,
+    currentTokenText ?? null,
+  );
+  const tokenInfoParts = [tokenTypeLabel, tokenPreview]
+    .filter(part => part && part.length > 0)
+    .join("  ");
+  const tokenInfo = tokenInfoParts
+    ? `${chalk.bold("token:")} ${tokenInfoParts}`
+    : `${chalk.bold("token:")} ${chalk.dim("none")}`;
+  return `${treepath}    ${statusInfo}    ${tokenInfo}    ${chalk.bold("types:")} ${typeDisplay}`;
 }

@@ -32,6 +32,20 @@ import {
   setTokenMode,
   prompt as buildPrompt,
   shouldSubmitOnEmptyLastLine,
+  collectFirstTokenCandidates,
+  type CompletionCandidate,
+  type CompletionTokenMetadata,
+  type CompletionStageProgress,
+  getCommandSummary,
+  clearTerminal,
+} from "./index.ts";
+import {
+  computeCompletionLayout,
+  buildCompletionGrid,
+  navigateCompletionIndex,
+  type CompletionLayout,
+  type CompletionGrid,
+  type CompletionDirection,
 } from "./index.ts";
 import {
   insertTextIntoTokenLine,
@@ -62,7 +76,9 @@ export function setMode(m: Mode) {
 }
 
 /* ---------------- PATH / executables ---------------- */
-const PATH_DIRS = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
+const PATH_DIRS = (process.env.PATH ?? "")
+  .split(path.delimiter)
+  .filter(Boolean);
 function isExecutableOnPath(cmd: string): string | null {
   if (!cmd) return null;
   for (const dir of PATH_DIRS) {
@@ -99,6 +115,127 @@ const CTX_WRITE_LOG = path.join(SHELL_START_DIR, "ctx-write.log");
 let ctxWriteLogPrepared = false;
 const LANG_YAML_PATH = fileURLToPath(new URL("../lang.yml", import.meta.url));
 let lastYamlFileMtimeMs = Number.NEGATIVE_INFINITY;
+const MAX_COMPLETION_ROWS = 5;
+
+let statusSummaryCommand: string | null = null;
+let statusSummaryValue: string | null = null;
+let statusSummaryLoading = false;
+let statusSummaryRequestId = 0;
+
+interface CompletionSession {
+  candidates: CompletionCandidate[];
+  activeIndex: number;
+  originalToken: InputToken | null;
+  originalText: string;
+  originalType?: string;
+  originalCompletion?: CompletionTokenMetadata;
+  createdToken: boolean;
+  lineIndex: number;
+  lastAppliedIndex: number;
+  showAll: boolean;
+  awaitingOverflowConfirm: boolean;
+  fullDisplayRows: number;
+  grid: CompletionGrid;
+  displayMode: "grid" | "list";
+  plainOverflow: boolean;
+}
+
+let completionSession: CompletionSession | null = null;
+let completionLoading = false;
+let lastRenderInteractiveHeight = 0;
+const COMPLETION_SPINNER_FRAMES = ["-", "\\", "|", "/"] as const;
+const COMPLETION_SPINNER_INTERVAL_MS = 120;
+const COMPLETION_SPINNER_COLORS = [
+  (value: string) => chalk.cyanBright(value),
+  (value: string) => chalk.magentaBright(value),
+  (value: string) => chalk.blueBright(value),
+  (value: string) => chalk.greenBright(value),
+] as const;
+
+interface CompletionGenerationState {
+  active: boolean;
+  label: string;
+  index: number;
+  total: number;
+  spinner: number;
+  interval: NodeJS.Timeout | null;
+}
+
+const completionGenerationState: CompletionGenerationState = {
+  active: false,
+  label: "initializing",
+  index: 0,
+  total: 0,
+  spinner: 0,
+  interval: null,
+};
+
+function startCompletionGeneration(): void {
+  stopCompletionGeneration();
+  completionGenerationState.active = true;
+  completionGenerationState.label = "initializing";
+  completionGenerationState.index = 0;
+  completionGenerationState.total = 0;
+  completionGenerationState.spinner = 0;
+  completionGenerationState.interval = setInterval(() => {
+    if (!completionGenerationState.active) return;
+    completionGenerationState.spinner =
+      (completionGenerationState.spinner + 1) %
+      COMPLETION_SPINNER_FRAMES.length;
+    renderMline();
+  }, COMPLETION_SPINNER_INTERVAL_MS);
+  renderMline();
+}
+
+function updateCompletionGenerationStage(
+  progress: CompletionStageProgress,
+): void {
+  if (!completionGenerationState.active) return;
+  completionGenerationState.label = progress.label;
+  completionGenerationState.index = progress.index;
+  completionGenerationState.total = progress.total;
+  renderMline();
+}
+
+function stopCompletionGeneration(): void {
+  const timer = completionGenerationState.interval;
+  if (timer) clearInterval(timer);
+  completionGenerationState.interval = null;
+  completionGenerationState.active = false;
+  completionGenerationState.label = "initializing";
+  completionGenerationState.index = 0;
+  completionGenerationState.total = 0;
+  completionGenerationState.spinner = 0;
+}
+
+function completionGenerationStatusLine(): string | null {
+  if (!completionGenerationState.active) return null;
+  const spinnerFrame =
+    COMPLETION_SPINNER_FRAMES[
+      completionGenerationState.spinner %
+        COMPLETION_SPINNER_FRAMES.length
+    ];
+  const colorFn =
+    COMPLETION_SPINNER_COLORS[
+      completionGenerationState.spinner %
+        COMPLETION_SPINNER_COLORS.length
+    ];
+  const label =
+    completionGenerationState.label || "initializing";
+  const prefix = chalk.dim("completion output generation");
+  const spinnerText = colorFn(spinnerFrame);
+  const stageText = colorFn(chalk.bold(label));
+  const total = completionGenerationState.total;
+  const index = Math.min(
+    completionGenerationState.index,
+    total,
+  );
+  const countText =
+    total > 0
+      ? chalk.dim(` (${index}/${total})`)
+      : "";
+  return `${prefix} ${spinnerText} ${stageText}${countText}`.trim();
+}
 
 function appendCtxWriteLog(chunk: string) {
   try {
@@ -180,6 +317,512 @@ function lineTokenSpans(line: TokenLine): TokenSpan[] {
   return spans
 }
 
+function refreshLinePositions(line: TokenLine): void {
+  let cursor = 0;
+  for (let i = 0; i < line.length; i++) {
+    const token = line[i];
+    if (!token) continue;
+    token.tokenIdx = i;
+    token.x = cursor;
+    cursor += tokenText(token).length;
+  }
+}
+
+function firstTokenLocation(): { token: InputToken | null; lineIndex: number } {
+  for (let i = 0; i < lines.length; i++) {
+    const line = ensureLine(i);
+    for (const token of line) {
+      if (!token || token.type === SPACE_TYPE) continue;
+      return { token, lineIndex: i };
+    }
+  }
+  ensureLine(0);
+  return { token: null, lineIndex: 0 };
+}
+
+function formatCompletionCandidate(
+  candidate: CompletionCandidate,
+  isActive: boolean,
+): string {
+  const highlighter = getHighlighter(candidate.tokenType);
+  const rendered = highlighter(candidate.value);
+  return isActive ? chalk.inverse(rendered) : rendered;
+}
+
+function estimateCompletionGridWidth(
+  candidates: CompletionCandidate[],
+  layout: CompletionLayout,
+): number {
+  if (!candidates.length) return 0;
+  if (!layout.columns || layout.columns <= 0) return 0;
+  const columnWidth = Math.max(
+    1,
+    Math.max(...candidates.map(candidate => candidate.value.length)) + 2,
+  );
+  return columnWidth * layout.columns;
+}
+
+function currentTerminalWidth(): number {
+  return typeof process.stdout.columns === "number"
+    ? Math.max(0, process.stdout.columns ?? 0)
+    : 0;
+}
+
+function updateCompletionSessionLayout(session: CompletionSession): void {
+  const total = session.candidates.length;
+  const fullLayout = computeCompletionLayout(
+    total,
+    Number.POSITIVE_INFINITY,
+  );
+  const requiredWidth = estimateCompletionGridWidth(
+    session.candidates,
+    fullLayout,
+  );
+  const terminalWidth = currentTerminalWidth();
+  const needsRowExpansion = fullLayout.rows > MAX_COMPLETION_ROWS;
+  const requiresList = terminalWidth > 0 && requiredWidth > terminalWidth;
+  const needsConfirmation = needsRowExpansion || requiresList;
+  const shouldShowAll = session.showAll || !needsConfirmation;
+
+  session.showAll = shouldShowAll;
+  session.awaitingOverflowConfirm = needsConfirmation && !session.showAll;
+  session.plainOverflow = requiresList;
+  session.fullDisplayRows = requiresList ? total : fullLayout.rows;
+  session.displayMode = requiresList ? "list" : "grid";
+
+  if (session.displayMode === "grid") {
+    syncCompletionGrid(session);
+  } else {
+    session.grid = [];
+  }
+}
+
+function readAnsiSequence(
+  text: string,
+  start: number,
+): { value: string; length: number } | null {
+  if (text[start] !== "\u001b" || start >= text.length - 1) return null;
+  let end = start + 1;
+  const second = text[end];
+  const allowedSecond =
+    second === "[" ||
+    second === "]" ||
+    second === "(" ||
+    second === ")" ||
+    second === "O" ||
+    second === "P";
+  if (!allowedSecond) {
+    return null;
+  }
+  end++;
+  while (end < text.length) {
+    const code = text.charCodeAt(end);
+    if (code >= 0x40 && code <= 0x7e) {
+      end++;
+      return { value: text.slice(start, end), length: end - start };
+    }
+    end++;
+  }
+  return { value: text.slice(start), length: text.length - start };
+}
+
+function truncateAnsi(text: string, maxWidth: number): string {
+  if (maxWidth <= 0) return "";
+  let visible = 0;
+  let index = 0;
+  let truncated = false;
+  let output = "";
+
+  while (index < text.length) {
+    if (text[index] === "\u001b") {
+      const sequence = readAnsiSequence(text, index);
+      if (sequence) {
+        output += sequence.value;
+        index += sequence.length;
+        continue;
+      }
+    }
+    if (visible >= maxWidth) {
+      truncated = true;
+      break;
+    }
+    const code = text.codePointAt(index) ?? 0;
+    const length = code > 0xffff ? 2 : 1;
+    output += text.slice(index, index + length);
+    visible++;
+    index += length;
+    if (visible >= maxWidth && index < text.length) {
+      truncated = true;
+      break;
+    }
+  }
+
+  if (truncated) {
+    output += "\u001b[0m";
+  }
+
+  return output;
+}
+
+function buildCompletionInteractiveLines(session: CompletionSession): string[] {
+  if (!session.candidates.length) return [];
+  if (session.awaitingOverflowConfirm && !session.showAll) {
+    const firstLine =
+      `lish: do you wish to see all ${session.candidates.length} ` +
+      `possibilities (${session.fullDisplayRows} lines)?`;
+    const secondLine =
+      "Typing y (no return needed) will show the whole table.";
+    return [firstLine, secondLine];
+  }
+  if (
+    session.displayMode === "list" &&
+    session.showAll &&
+    !session.awaitingOverflowConfirm
+  ) {
+    return session.candidates.map((candidate, index) =>
+      formatCompletionCandidate(
+        candidate,
+        index === session.activeIndex,
+      ),
+    );
+  }
+  const layout = syncCompletionGrid(session);
+
+  const columnWidth = Math.max(
+    1,
+    Math.max(...session.candidates.map(c => c.value.length)) + 2,
+  );
+  const rows = layout.rows;
+  const columns = layout.columns;
+  const lines: string[] = Array.from({ length: rows }, () => "");
+
+  for (let column = 0; column < columns; column++) {
+    for (let row = 0; row < rows; row++) {
+      const index = column * rows + row;
+      if (index >= session.candidates.length) break;
+      const candidate = session.candidates[index];
+      const formatted = formatCompletionCandidate(
+        candidate,
+        index === session.activeIndex,
+      );
+      const padding = Math.max(0, columnWidth - candidate.value.length);
+      const display = formatted + " ".repeat(padding);
+      lines[row] = (lines[row] ?? "") + display;
+    }
+  }
+
+  return lines.map(line => line.trimEnd());
+}
+
+function describeCandidateMetadata(
+  candidate: CompletionCandidate | undefined,
+  total: number,
+  session: CompletionSession,
+): string | null {
+  if (!candidate) {
+    if (session.awaitingOverflowConfirm && !session.showAll) {
+      return `Completion: ${total} matches — press y to list all.`;
+    }
+    return `Completion: ${total} matches`;
+  }
+  const { metadata } = candidate;
+  if (metadata.kind === "Command" && metadata.summary) {
+    return `Command: ${metadata.summary}`;
+  }
+  const highlighter = getHighlighter(candidate.tokenType);
+  const typeLabel = highlighter(metadata.kind);
+  let detail = "";
+  switch (metadata.kind) {
+    case "Builtin":
+      detail = metadata.helpText
+        ? `${candidate.value}: ${metadata.helpText}`
+        : candidate.value;
+      break;
+    case "Command":
+      detail = metadata.summary
+        ? `${candidate.value}: ${metadata.summary}`
+        : metadata.description ?? candidate.value;
+      break;
+    case "Folder":
+      detail = metadata.previewEntry
+        ? `${candidate.value}/ → ${metadata.previewEntry}`
+        : `${candidate.value}/`;
+      break;
+    case "SnippetTrigger":
+      detail = metadata.description
+        ? `${candidate.value}: ${metadata.description}`
+        : metadata.snippetName ?? candidate.value;
+      break;
+    case "TypeScriptSymbol":
+      detail = metadata.symbolType
+        ? `${candidate.value}: ${metadata.symbolType}`
+        : candidate.value;
+      break;
+    default:
+      detail = "";
+  }
+  const info = detail ? `— ${detail}` : "";
+  return `Completion ${typeLabel} ${info}`.trim();
+}
+
+function syncCompletionGrid(session: CompletionSession): CompletionLayout {
+  const maxRows = session.showAll
+    ? Number.POSITIVE_INFINITY
+    : MAX_COMPLETION_ROWS;
+  const layout = computeCompletionLayout(
+    session.candidates.length,
+    maxRows,
+  );
+  session.grid = buildCompletionGrid(layout, session.candidates.length);
+  return layout;
+}
+
+function ensureCompletionToken(
+  session: CompletionSession,
+): { token: InputToken; line: TokenLine } {
+  let line = ensureLine(session.lineIndex);
+  let token = session.originalToken;
+  if (token && !line.includes(token)) {
+    const located = firstTokenLocation();
+    line = ensureLine(located.lineIndex);
+    token = located.token;
+    session.lineIndex = located.lineIndex;
+    session.originalToken = token;
+    session.createdToken = !token;
+  }
+  if (!token) {
+    const placeholder: InputToken = {
+      type: DEFAULT_TEXT_TYPE,
+      tokenIdx: 0,
+      text: session.originalText,
+      x: 0,
+    };
+    line.splice(0, 0, placeholder);
+    refreshLinePositions(line);
+    session.originalToken = placeholder;
+    session.createdToken = true;
+    token = placeholder;
+  }
+  return { token, line };
+}
+
+function applyCompletionCandidate(index: number): void {
+  const session = completionSession;
+  if (!session) return;
+  const candidate = session.candidates[index];
+  if (!candidate) return;
+  const { token, line } = ensureCompletionToken(session);
+  token.type = candidate.tokenType;
+  token.text = candidate.value;
+  delete token.subTokens;
+  token.completion = candidate.metadata;
+  refreshLinePositions(line);
+  session.activeIndex = index;
+  session.lastAppliedIndex = index;
+  lineIdx = session.lineIndex;
+  colIdx = tokenText(token).length;
+  resetSpaceSequence();
+}
+
+function ensureTrailingSpace(
+  token: InputToken,
+  line: TokenLine,
+  lineIndex: number,
+): void {
+  const tokenIndex = line.indexOf(token);
+  if (tokenIndex === -1) return;
+  const next = line[tokenIndex + 1];
+  if (!next || next.type !== SPACE_TYPE) {
+    line.splice(tokenIndex + 1, 0, {
+      type: SPACE_TYPE,
+      tokenIdx: 0,
+      text: " ",
+      x: 0,
+    });
+  } else if (typeof next.text === "string") {
+    next.text = next.text.startsWith(" ") ? next.text : ` ${next.text}`;
+  } else {
+    next.text = " ";
+  }
+  refreshLinePositions(line);
+  lineIdx = lineIndex;
+  const targetCol = tokenText(token).length + 1;
+  colIdx = Math.min(targetCol, lineLength(line));
+}
+
+function clearCompletionSession(
+  options?: { restoreOriginal?: boolean; skipRender?: boolean },
+) {
+  const session = completionSession;
+  if (!session) return;
+  const restore = options?.restoreOriginal ?? false;
+  if (restore && session.originalToken) {
+    const line = ensureLine(session.lineIndex);
+    if (session.createdToken) {
+      const idx = line.indexOf(session.originalToken);
+      if (idx !== -1) {
+        line.splice(idx, 1);
+        refreshLinePositions(line);
+        lineIdx = session.lineIndex;
+        colIdx = Math.min(colIdx, lineLength(line));
+      }
+    } else {
+      session.originalToken.type =
+        session.originalType ?? session.originalToken.type;
+      session.originalToken.text = session.originalText;
+      if (session.originalCompletion) {
+        session.originalToken.completion = session.originalCompletion;
+      } else {
+        delete session.originalToken.completion;
+      }
+      refreshLinePositions(line);
+      lineIdx = session.lineIndex;
+      colIdx = Math.min(lineLength(line), session.originalText.length);
+    }
+  }
+  completionSession = null;
+  if (!options?.skipRender) {
+    renderMline();
+  }
+}
+
+function completionActive(): boolean {
+  return Boolean(completionSession);
+}
+
+function moveCompletionSelection(
+  direction: CompletionDirection,
+): boolean {
+  const session = completionSession;
+  if (!session || !session.candidates.length) return false;
+  if (session.displayMode === "list") {
+    process.stdout.write("\u0007");
+    return true;
+  }
+  if (session.awaitingOverflowConfirm && !session.showAll) {
+    process.stdout.write("\u0007");
+    return true;
+  }
+  if (!session.grid.length) {
+    syncCompletionGrid(session);
+  }
+  if (!session.grid.length) return false;
+  if (session.activeIndex === -1) {
+    applyCompletionCandidate(0);
+    renderMline();
+    return true;
+  }
+  const nextIndex = navigateCompletionIndex(
+    session.activeIndex,
+    direction,
+    session.grid,
+  );
+  if (nextIndex === null || nextIndex === session.activeIndex) {
+    process.stdout.write("\u0007");
+    return true;
+  }
+  applyCompletionCandidate(nextIndex);
+  renderMline();
+  return true;
+}
+
+function commitCompletionSelection(): boolean {
+  const session = completionSession;
+  if (!session || session.activeIndex < 0) return false;
+  if (session.displayMode === "list") {
+    process.stdout.write("\u0007");
+    return true;
+  }
+  if (session.awaitingOverflowConfirm && !session.showAll) {
+    process.stdout.write("\u0007");
+    return true;
+  }
+  applyCompletionCandidate(session.activeIndex);
+  const { token, line } = ensureCompletionToken(session);
+  ensureTrailingSpace(token, line, session.lineIndex);
+  completionSession = null;
+  renderMline();
+  return true;
+}
+
+async function handleCompletionTrigger(): Promise<void> {
+  if (completionLoading) return;
+  if (completionSession) {
+    if (!completionSession.candidates.length) {
+      process.stdout.write("\u0007");
+      return;
+    }
+    if (
+      completionSession.awaitingOverflowConfirm &&
+      completionSession.showAll === false
+    ) {
+      process.stdout.write("\u0007");
+      return;
+    }
+    if (completionSession.displayMode === "list") {
+      process.stdout.write("\u0007");
+      return;
+    }
+    if (completionSession.activeIndex === -1) {
+      applyCompletionCandidate(0);
+    } else {
+      process.stdout.write("\u0007");
+    }
+    renderMline();
+    return;
+  }
+
+  completionLoading = true;
+  startCompletionGeneration();
+  try {
+    const candidates = await collectFirstTokenCandidates(
+      {
+        lines,
+      },
+      {
+        onStage(progress: CompletionStageProgress) {
+          updateCompletionGenerationStage(progress);
+        },
+      },
+    );
+    if (!candidates.length) {
+      process.stdout.write("\u0007");
+      return;
+    }
+    const location = firstTokenLocation();
+    completionSession = {
+      candidates,
+      activeIndex: -1,
+      originalToken: location.token,
+      originalText: location.token ? tokenText(location.token) : "",
+      originalType: location.token?.type,
+      originalCompletion: location.token?.completion,
+      createdToken: !location.token,
+      lineIndex: location.lineIndex,
+      lastAppliedIndex: -1,
+      showAll: false,
+      awaitingOverflowConfirm: false,
+      fullDisplayRows: 0,
+      grid: [],
+      displayMode: "grid",
+      plainOverflow: false,
+    };
+    updateCompletionSessionLayout(completionSession);
+    if (completionSession.showAll && completionSession.candidates.length) {
+      completionSession.activeIndex = 0;
+      applyCompletionCandidate(0);
+      completionSession.lastAppliedIndex = 0;
+    } else {
+      completionSession.activeIndex = -1;
+      completionSession.lastAppliedIndex = -1;
+    }
+  } finally {
+    completionLoading = false;
+    stopCompletionGeneration();
+    renderMline();
+  }
+}
+
 function currentTokenInfo(): { token: InputToken | undefined; index: number } {
   const line = ensureLine(lineIdx)
   if (line.length === 0) return { token: undefined, index: -1 }
@@ -216,7 +859,10 @@ function currentTokenAtCursor(): InputToken | undefined {
   return currentTokenInfo().token;
 }
 
-function stripBackgroundIndicator(args: string[], background: boolean): string[] {
+function stripBackgroundIndicator(
+  args: string[],
+  background: boolean,
+): string[] {
   if (!background) return args;
   if (!args.length) return args;
   const last = args[args.length - 1];
@@ -235,7 +881,10 @@ function promptActiveLines(): TokenMultiLine {
 
 function computePromptHeight(): number {
   const active = promptActiveLines();
-  return Math.max(1, active.length + 1); // +1 for status line
+  const completionLines = completionSession
+    ? buildCompletionInteractiveLines(completionSession)
+    : [];
+  return Math.max(1, active.length + completionLines.length + 1);
 }
 
 function renderPromptAfterOutput() {
@@ -284,65 +933,144 @@ function highlightFirstWord(line: TokenLine): string {
  * Strategy:
  *  1) Jump to bottom (CSI 999B).
  *  2) Move up (promptHeight-1) lines to the first prompt line.
- *  3) For each visual line: clear the line, write content, newline (except last).
+ *  3) For each visual line: clear the line, write content,
+ *     newline (except last).
  *  4) Move the cursor up to the target row and set the column.
  */
 function renderMline() {
   const currentLine = getLine(lineIdx);
-  colIdx = Math.min(colIdx, lineLength(currentLine))
-  const activeLines = promptActiveLines()
-  const promptText = buildPrompt(history.length + 1)
-  const continuationLength = Math.max(promptText.length, 2)
-  const continuationPrefix = `${' '.repeat(Math.max(continuationLength - 2, 0))}| `
-  const prefixes: string[] = activeLines.map((_, i) => i === 0 ? promptText : continuationPrefix)
-  const prefixLengths: number[] = activeLines.map((_, i) => i === 0 ? promptText.length : continuationLength)
+  colIdx = Math.min(colIdx, lineLength(currentLine));
+  const activeLines = promptActiveLines();
+  const promptText = buildPrompt(history.length + 1);
+  const continuationPrefix = "| ";
+  const continuationLength = continuationPrefix.length;
+  const prefixes: string[] = activeLines.map((_, i) =>
+    i === 0 ? promptText : continuationPrefix,
+  );
+  const prefixLengths: number[] = activeLines.map((_, i) =>
+    i === 0 ? promptText.length : continuationLength,
+  );
   const visualLines: string[] = activeLines.map((ln, i) => {
-    const body = i === 0 ? highlightFirstWord(ln) : renderLine(ln)
-    return prefixes[i] + body
-  })
-  const h = Math.max(1, visualLines.length)
+    const body = i === 0 ? highlightFirstWord(ln) : renderLine(ln);
+    return prefixes[i] + body;
+  });
+  const promptLineCount = Math.max(1, visualLines.length);
 
   const { token: activeToken, index: activeIndex } = currentTokenInfo();
   const currentTokenIdx = activeIndex >= 0 ? activeIndex : null;
-  const currentTokenLen = activeToken ? tokenText(activeToken).length : null;
+  const currentTokenText = activeToken ? tokenText(activeToken) : null;
+  const currentTokenLen =
+    currentTokenText != null ? currentTokenText.length : null;
   const validTypes = sortedValidTokens(activeToken);
-  const statusLine = formatStatusLine({
+  const completionLines = completionSession
+    ? buildCompletionInteractiveLines(completionSession)
+    : [];
+  const completionStatus = completionSession
+    ? describeCandidateMetadata(
+        completionSession.activeIndex >= 0
+          ? completionSession.candidates[completionSession.activeIndex]
+          : undefined,
+        completionSession.candidates.length,
+        completionSession,
+      )
+    : null;
+  const summaryText = resolveStatusLineSummary(activeToken);
+  const baseStatusLine = formatStatusLine({
     modeLabel: mode,
     currentTokenType: activeToken?.type,
     currentTokenIndex: currentTokenIdx,
     currentTokenLength: currentTokenLen,
+    currentTokenText,
     validTypes,
   });
-  const displayLines: string[] = [...visualLines, statusLine]
-
-  const totalHeight = Math.max(1, displayLines.length)
-
-  // 1) go to bottom
-  readline.moveCursor(process.stdout, 0, 999); // clamp to last row
-
-  // 2) go up to the first prompt row so the block occupies the bottom h rows
-  if (totalHeight > 1) readline.moveCursor(process.stdout, 0, -(totalHeight - 1));
-  readline.cursorTo(process.stdout, 0);
-
-  // 3) draw each line, clearing to avoid leftovers
-  for (let i = 0; i < totalHeight; i++) {
-    readline.clearLine(process.stdout, 0) // clear entire line
-    process.stdout.write(displayLines[i] ?? '')
-    if (i < totalHeight - 1) process.stdout.write('\n')
+  const baseStatusWithSummary = summaryText
+    ? `${baseStatusLine}  ${chalk.bold('tldr:')} ${summaryText}`
+    : baseStatusLine;
+  let statusLine = baseStatusWithSummary;
+  const generationStatus = completionGenerationStatusLine();
+  if (generationStatus) {
+    statusLine = generationStatus;
+  } else if (completionSession) {
+    if (completionSession.activeIndex >= 0 && completionStatus) {
+      statusLine = completionStatus;
+    } else if (completionStatus) {
+      statusLine = `${baseStatusWithSummary}  ${completionStatus}`;
+    }
   }
 
-  // 4) place cursor to row/col inside the block (relative from current bottom block)
-  const cursorRow = Math.min(Math.max(0, lineIdx), h - 1)
-  const cursorLine = activeLines[cursorRow] ?? []
-  const cursorPrefixLen = prefixLengths[cursorRow] ?? promptText.length
-  const cursorCol = cursorPrefixLen + Math.min(Math.max(0, colIdx), lineLength(cursorLine))
-  const up = (totalHeight - 1) - cursorRow
-  if (up > 0) readline.moveCursor(process.stdout, 0, -up)
-  readline.cursorTo(process.stdout, cursorCol)
+  const interactiveLines: string[] = [...visualLines];
+  if (completionLines.length) {
+    interactiveLines.push(...completionLines);
+  }
+  const interactiveHeight = Math.max(1, interactiveLines.length);
+  const renderInteractiveHeight = Math.max(
+    interactiveHeight,
+    lastRenderInteractiveHeight,
+  );
+  const ttyRows =
+    typeof process.stdout.rows === "number" ? process.stdout.rows ?? 0 : 0;
+  const ttyCols = currentTerminalWidth();
+  const canPinStatus = ttyRows > 0 && interactiveHeight < ttyRows;
+  const statusRow = canPinStatus ? ttyRows - 1 : interactiveHeight;
+  const statusTargetRow =
+    ttyRows > 0 ? Math.min(statusRow, Math.max(ttyRows - 1, 0)) : statusRow;
+
+  readline.cursorTo(process.stdout, 0, 0);
+
+  const maxRows =
+    ttyRows > 0
+      ? Math.min(renderInteractiveHeight, Math.max(ttyRows - 1, 0))
+      : renderInteractiveHeight;
+
+  for (let i = 0; i < maxRows; i++) {
+    readline.clearLine(process.stdout, 0);
+    const nextLine =
+      i < interactiveLines.length ? interactiveLines[i] ?? "" : "";
+    process.stdout.write(nextLine);
+    if (i < maxRows - 1) {
+      process.stdout.write("\n");
+    }
+  }
+
+  if (ttyRows > 0) {
+    readline.cursorTo(process.stdout, 0, maxRows);
+  } else {
+    readline.cursorTo(process.stdout, 0);
+  }
+  readline.clearScreenDown(process.stdout);
+
+  const renderedStatus =
+    ttyCols > 0 ? truncateAnsi(statusLine, ttyCols) : statusLine;
+  if (ttyRows > 0) {
+    readline.cursorTo(process.stdout, 0, statusTargetRow);
+  } else {
+    const offset = Math.max(statusTargetRow - maxRows + 1, 0);
+    if (offset > 0) {
+      readline.moveCursor(process.stdout, 0, offset);
+    }
+    readline.cursorTo(process.stdout, 0);
+  }
+  readline.clearLine(process.stdout, 0);
+  process.stdout.write(renderedStatus);
+
+  const cursorRow = Math.min(Math.max(0, lineIdx), promptLineCount - 1);
+  const cursorLine = activeLines[cursorRow] ?? [];
+  const cursorPrefixLen = prefixLengths[cursorRow] ?? promptText.length;
+  const cursorCol =
+    cursorPrefixLen +
+    Math.min(Math.max(0, colIdx), lineLength(cursorLine));
+  const cursorTargetRow =
+    ttyRows > 0
+      ? Math.min(cursorRow, Math.max(statusTargetRow - 1, 0))
+      : cursorRow;
+  readline.cursorTo(process.stdout, cursorCol, cursorTargetRow);
+
+  lastRenderInteractiveHeight = interactiveHeight;
 }
 
 /* ---------------- History ---------------- */
 function loadHistory(idx: number) {
+  clearCompletionSession({ restoreOriginal: false, skipRender: true });
   if (idx < 0 || idx >= history.length) {
     resetBuffer();
     return;
@@ -368,6 +1096,56 @@ function currentFirstWord(): string {
   const m = lineText(firstLine).match(/^(\S+)/);
   if (!m) return "";
   return m[1] ?? "";
+}
+
+function resetStatusSummaryState(): void {
+  statusSummaryCommand = null;
+  statusSummaryValue = null;
+  statusSummaryLoading = false;
+  statusSummaryRequestId = 0;
+}
+
+function resolveStatusLineSummary(
+  token: InputToken | undefined,
+): string | null {
+  const metadata = token?.completion;
+  if (metadata?.kind === "Command" && metadata.summary) {
+    const label = token ? tokenText(token) : metadata.label;
+    statusSummaryCommand = label || metadata.label;
+    statusSummaryValue = metadata.summary;
+    statusSummaryLoading = false;
+    return statusSummaryValue;
+  }
+
+  const firstWord = currentFirstWord();
+  if (!firstWord) {
+    resetStatusSummaryState();
+    return null;
+  }
+
+  if (statusSummaryCommand === firstWord) {
+    if (statusSummaryLoading) return null;
+    return statusSummaryValue;
+  }
+
+  statusSummaryCommand = firstWord;
+  statusSummaryValue = null;
+  statusSummaryLoading = true;
+  const requestId = ++statusSummaryRequestId;
+  void getCommandSummary(firstWord)
+    .then(summary => {
+      if (statusSummaryRequestId !== requestId) return;
+      statusSummaryValue = summary;
+      statusSummaryLoading = false;
+      renderMline();
+    })
+    .catch(() => {
+      if (statusSummaryRequestId !== requestId) return;
+      statusSummaryValue = null;
+      statusSummaryLoading = false;
+      renderMline();
+    });
+  return null;
 }
 
 /* ---------------- Movement helpers ---------------- */
@@ -415,7 +1193,9 @@ function nextHistory() {
 }
 
 /* ---------------- Submit / execute ---------------- */
-function detectBackground(input: string): { command: string; background: boolean } {
+function detectBackground(
+  input: string,
+): { command: string; background: boolean } {
   const trimmed = input.trimEnd();
   if (!trimmed) {
     return { command: "", background: false };
@@ -427,6 +1207,7 @@ function detectBackground(input: string): { command: string; background: boolean
 }
 
 function submit() {
+  clearCompletionSession({ restoreOriginal: false, skipRender: true });
   ensureLine(lineIdx)
   const lineSegments: string[] = lines.map(lineText);
   const joined = lineSegments.join(' ');
@@ -536,7 +1317,9 @@ function submit() {
         renderPromptAfterOutput();
       }
     };
-    const child = spawn(cmd, rest, { stdio: ["inherit", "pipe", "pipe"] }) as ChildProcess;
+    const child = spawn(cmd, rest, {
+      stdio: ["inherit", "pipe", "pipe"],
+    }) as ChildProcess;
     registerJob(command, child, background);
     child.stdout?.on("data", (chunk: Buffer) => {
       const str = chunk.toString();
@@ -576,7 +1359,9 @@ function submit() {
 }
 
 function resetBuffer() {
+  clearCompletionSession({ restoreOriginal: false, skipRender: true });
   resetSpaceSequence()
+  resetStatusSummaryState();
   lines = [createLineFromText('')]
   lineIdx = 0;
   colIdx = 0;
@@ -603,15 +1388,48 @@ function deleteOrEOF() {
   }
   renderMline();
 }
-function beginningOfLine() { colIdx = 0; renderMline(); }
-function endOfLine() { colIdx = lineLength(getLine(lineIdx)); renderMline(); }
-function backwardChar() { moveLeft(); renderMline(); }
-function forwardChar() { moveRight(); renderMline(); }
-function previousLineAction() { previousLine(); renderMline(); }
-function nextLineAction() { nextLine(); renderMline(); }
-function previousHistoryAction() { previousHistory(); renderMline(); }
-function nextHistoryAction() { nextHistory(); renderMline(); }
+function beginningOfLine() {
+  clearCompletionSession({ restoreOriginal: true, skipRender: true });
+  colIdx = 0;
+  renderMline();
+}
+function endOfLine() {
+  clearCompletionSession({ restoreOriginal: true, skipRender: true });
+  colIdx = lineLength(getLine(lineIdx));
+  renderMline();
+}
+function backwardChar() {
+  if (completionActive() && moveCompletionSelection("left")) return;
+  moveLeft();
+  renderMline();
+}
+function forwardChar() {
+  if (completionActive() && moveCompletionSelection("right")) return;
+  moveRight();
+  renderMline();
+}
+function previousLineAction() {
+  if (completionActive() && moveCompletionSelection("up")) return;
+  previousLine();
+  renderMline();
+}
+function nextLineAction() {
+  if (completionActive() && moveCompletionSelection("down")) return;
+  nextLine();
+  renderMline();
+}
+function previousHistoryAction() {
+  clearCompletionSession({ restoreOriginal: true, skipRender: true });
+  previousHistory();
+  renderMline();
+}
+function nextHistoryAction() {
+  clearCompletionSession({ restoreOriginal: true, skipRender: true });
+  nextHistory();
+  renderMline();
+}
 function deleteChar() {
+  clearCompletionSession({ restoreOriginal: true, skipRender: true });
   const line = ensureLine(lineIdx);
   if (colIdx < lineLength(line)) {
     deleteRangeFromTokenLine(line, colIdx, colIdx + 1);
@@ -619,6 +1437,7 @@ function deleteChar() {
   }
 }
 function backwardDeleteChar() {
+  clearCompletionSession({ restoreOriginal: true, skipRender: true });
   ensureLine(lineIdx)
   if (colIdx > 0) {
     const line = ensureLine(lineIdx);
@@ -638,6 +1457,7 @@ function backwardDeleteChar() {
   renderMline();
 }
 function forwardToken() {
+  clearCompletionSession({ restoreOriginal: true, skipRender: true });
   let targetLine = lineIdx;
   let targetCol = colIdx;
   const totalLines = lines.length;
@@ -692,6 +1512,7 @@ function forwardToken() {
   renderMline();
 }
 function backwardToken() {
+  clearCompletionSession({ restoreOriginal: true, skipRender: true });
   let targetLine = Math.min(lineIdx, lines.length - 1);
   let targetCol = colIdx;
   while (targetLine >= 0) {
@@ -833,7 +1654,10 @@ function handleDoubleSpaceEvent() {
       ? spanAtCursor
       : spans.find(entry => entry.token === initialToken);
     const offset = baseSpan
-      ? Math.min(Math.max(colIdx - baseSpan.start, 0), baseSpan.end - baseSpan.start)
+      ? Math.min(
+          Math.max(colIdx - baseSpan.start, 0),
+          baseSpan.end - baseSpan.start,
+        )
       : tokenText(initialToken).length;
     const promoted = promoteSpaceFromNakedString(line, initialToken, offset, 0);
     if (promoted) {
@@ -859,7 +1683,9 @@ function handleDoubleSpaceEvent() {
     needsNormalize = true;
     const refreshed = lineTokenSpans(line);
     const candidate = refreshed.find(entry =>
-      entry.start <= insertionColumn && insertionColumn < entry.end && entry.token?.type === SPACE_TYPE,
+      entry.start <= insertionColumn &&
+      insertionColumn < entry.end &&
+      entry.token?.type === SPACE_TYPE,
     );
     if (candidate?.token) {
       spaceToken = candidate.token;
@@ -882,6 +1708,7 @@ function handleDoubleSpaceEvent() {
   resetSpaceSequence();
 }
 function insertNewline() {
+  clearCompletionSession({ restoreOriginal: true, skipRender: true });
   resetSpaceSequence()
   const line = getLine(lineIdx);
   const tail = splitTokenLineAt(line, colIdx);
@@ -891,6 +1718,7 @@ function insertNewline() {
   renderMline();
 }
 function enterAction() {
+  if (commitCompletionSelection()) return;
   const currentLine = getLine(lineIdx);
   const isEmptyLine = lineLength(currentLine) === 0;
   const isLastLine = lineIdx === lines.length - 1;
@@ -910,16 +1738,17 @@ function enterAction() {
   insertNewline();
 }
 function acceptLine() {
+  if (commitCompletionSelection()) return;
   resetEnterSequence();
   submit();
 }
 function clearScreen() {
   // Clear screen + home, prompt will redraw at bottom next
-  readline.cursorTo(process.stdout, 0, 0);
-  readline.clearScreenDown(process.stdout);
+  clearTerminal(process.stdout);
   renderMline();
 }
 function killLineEnd() {
+  clearCompletionSession({ restoreOriginal: true, skipRender: true });
   const line = getLine(lineIdx);
   const length = lineLength(line);
   if (colIdx < length) {
@@ -928,12 +1757,16 @@ function killLineEnd() {
   renderMline();
 }
 function killLineBeginning() {
+  clearCompletionSession({ restoreOriginal: true, skipRender: true });
   if (colIdx > 0) {
     const line = getLine(lineIdx);
     deleteRangeFromTokenLine(line, 0, colIdx);
     colIdx = 0;
   }
   renderMline();
+}
+function tabComplete() {
+  void handleCompletionTrigger();
 }
 
 function interrupt() {
@@ -978,13 +1811,16 @@ const ACTIONS: Record<string, () => void> = {
   clearScreen,
   killLineEnd,
   killLineBeginning,
+  tabComplete,
 };
 
 /* ---------------- Escape sequences → key names ---------------- */
 const SEQ_TO_NAME: Record<string, string> = {
   "\r": "enter",
   "\n": "enter",
-  // Command/Super + Enter (Ghostty, iTerm2, and terminals supporting CSI-u modifiers)
+  "\u0009": "tab",
+  // Command/Super + Enter (Ghostty, iTerm2, and terminals supporting
+  // CSI-u modifiers)
   "\u001b[13;9~": "cmd-enter",
   "\u001b[13;9u": "cmd-enter",
   "\u001bO9M": "cmd-enter",
@@ -1025,7 +1861,7 @@ const SEQ_TO_NAME: Record<string, string> = {
 };
 const SEQS_DESC = Object.keys(SEQ_TO_NAME).sort((a, b) => b.length - a.length);
 
-/* ---------------- Default keymap (key name → action name) ---------------- */
+/* ---------------- Default keymap (key name → action name) --------------- */
 const DEFAULT_KEYMAP: Record<string, string> = {
   "ctrl-c": "interrupt",
   "ctrl-d": "deleteOrEOF",
@@ -1051,10 +1887,13 @@ const DEFAULT_KEYMAP: Record<string, string> = {
   "backspace": "backwardDeleteChar",
   "enter": "enterAction",
   "cmd-enter": "acceptLine",
+  "tab": "tabComplete",
 };
 
 /* ---------------- Input event string tokenizer ---------------- */
-type EventToken = { kind: "key"; name: string } | { kind: "text"; text: string };
+type EventToken =
+  | { kind: "key"; name: string }
+  | { kind: "text"; text: string };
 function tokenize(input: string): EventToken[] {
   const out: EventToken[] = [];
   let i = 0;
@@ -1086,6 +1925,28 @@ function tokenize(input: string): EventToken[] {
 /* ---------------- Insert text ---------------- */
 function insertText(text: string) {
   if (!text) return;
+  if (
+    completionSession?.awaitingOverflowConfirm &&
+    completionSession.showAll === false
+  ) {
+    const trimmed = text.trim();
+    if (trimmed.toLowerCase() === "y") {
+      completionSession.showAll = true;
+      completionSession.awaitingOverflowConfirm = false;
+      updateCompletionSessionLayout(completionSession);
+      if (completionSession.candidates.length) {
+        completionSession.activeIndex = 0;
+        applyCompletionCandidate(0);
+      }
+      renderMline();
+      return;
+    }
+    process.stdout.write("\u0007");
+    return;
+  }
+  if (completionSession) {
+    clearCompletionSession({ restoreOriginal: true, skipRender: true });
+  }
   let mutated = false;
   for (const ch of text) {
     if (ch === ' ') {
@@ -1126,6 +1987,22 @@ configureJobControl({
   },
 });
 
+process.on("SIGWINCH", () => {
+  if (completionSession) {
+    updateCompletionSessionLayout(completionSession);
+    if (completionSession.showAll && completionSession.candidates.length) {
+      if (
+        completionSession.activeIndex < 0 ||
+        completionSession.activeIndex >= completionSession.candidates.length
+      ) {
+        completionSession.activeIndex = 0;
+      }
+      applyCompletionCandidate(completionSession.activeIndex);
+    }
+  }
+  renderMline();
+});
+
 /* ---------------- Input loop ---------------- */
 function handleInput(chunk: string) {
   initFromYAMLfileIfchanged();
@@ -1135,7 +2012,12 @@ function handleInput(chunk: string) {
       if (t.name !== "enter") resetEnterSequence();
       resetSpaceSequence();
       const actionName = DEFAULT_KEYMAP[t.name];
-      if (inputLocked && actionName && actionName !== "interrupt" && actionName !== "suspendCurrent") {
+      if (
+        inputLocked &&
+        actionName &&
+        actionName !== "interrupt" &&
+        actionName !== "suspendCurrent"
+      ) {
         continue;
       }
       const action = actionName && ACTIONS[actionName];

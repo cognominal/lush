@@ -1,5 +1,17 @@
 import process from "node:process";
 import type { ChildProcess } from "node:child_process";
+import type { CompletionTokenMetadata } from "./tokenLine.ts";
+
+type CommandLikeKinds =
+  | "Builtin"
+  | "Command"
+  | "SnippetTrigger"
+  | "TypeScriptSymbol";
+
+export type JobCommandMetadata = Extract<
+  CompletionTokenMetadata,
+  { kind: CommandLikeKinds }
+>;
 
 export enum JobStatus {
   Running = "running",
@@ -11,6 +23,7 @@ export interface Job {
   id: number;
   pid: number | null;
   command: string;
+  commandMeta?: JobCommandMetadata;
   process: ChildProcess;
   status: JobStatus;
   background: boolean;

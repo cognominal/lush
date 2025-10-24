@@ -1,4 +1,4 @@
-import type { TokenTypename as TokenTypeName } from "./tokens.ts";
+import type { TokenTypeName } from "./tokens.ts";
 
 export interface InputToken {
   type: TokenTypeName;
@@ -6,11 +6,60 @@ export interface InputToken {
   text?: string; // missing for types that have subtypes
   subTokens?: InputToken[];
   x?: number;
-  Snippetexpanded?: boolean // so it is a keyw ord 
+  completion?: CompletionTokenMetadata;
 }
 
 export type TokenLine = InputToken[];
 export type TokenMultiLine = TokenLine[];
+
+export type CompletionTokenKind =
+  | "Folder"
+  | "Builtin"
+  | "Command"
+  | "SnippetTrigger"
+  | "TypeScriptSymbol";
+
+export interface CompletionMetadataBase<
+  Kind extends CompletionTokenKind,
+> {
+  kind: Kind;
+  label: string;
+  description?: string;
+}
+
+export interface FolderCompletionMetadata
+  extends CompletionMetadataBase<"Folder"> {
+  path?: string;
+  previewEntry?: string;
+}
+
+export interface BuiltinCompletionMetadata
+  extends CompletionMetadataBase<"Builtin"> {
+  helpText?: string;
+}
+
+export interface CommandCompletionMetadata
+  extends CompletionMetadataBase<"Command"> {
+  summary?: string;
+}
+
+export interface SnippetTriggerCompletionMetadata
+  extends CompletionMetadataBase<"SnippetTrigger"> {
+  snippetName?: string;
+}
+
+export interface TypeScriptSymbolCompletionMetadata
+  extends CompletionMetadataBase<"TypeScriptSymbol"> {
+  symbolType?: string;
+  modulePath?: string;
+}
+
+export type CompletionTokenMetadata =
+  | FolderCompletionMetadata
+  | BuiltinCompletionMetadata
+  | CommandCompletionMetadata
+  | SnippetTriggerCompletionMetadata
+  | TypeScriptSymbolCompletionMetadata;
 
 const SPACE_TYPE = "Space";
 const NAKED_STRING_TYPE = "NakedString";

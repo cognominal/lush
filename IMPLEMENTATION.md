@@ -38,6 +38,28 @@
   - Key settings: `defineConfig()` enables Node globals for tests; the coverage
     block exports v8 reporters; `resolve.alias` maps `@/` to `src/` for imports.
 
+## lang.yml Data Flow
+
+- `src/tokens.ts:initFromYAMLFile()` loads `lang.yml`, stores the parsed document
+  in `YAMLdata`, and calls `initFromYAMLdata()` whenever the editor notices a
+  file timestamp change.
+- `initFromYAMLdata()` hydrates two core registries: `TokenMaps` (per-mode
+  `TokenMapType`) and the active `tokenMap`. It also assembles `cachedHiliteFns`
+  so new highlight functions can be swapped in alongside token metadata.
+- `populateTokenMap()` iterates the YAML token specs, updating `TokenType`
+  entries with `priority`, `secable`, `instances`, and derived validators. These
+  entries populate `TokenMaps` before `applyActiveModeFromCache()` copies the
+  data into the runtime `tokenMap`.
+- `applyDefaultValidators()` and `applyHilites()` finalize the `tokenMap`
+  entries. Any module that imports `tokenMap` (for example,
+  `src/completionProvider.ts`) reads the same in-memory structure seeded from
+  `lang.yml`.
+- `src/completionProvider.ts:loadSnippetEntries()` re-parses `lang.yml` on demand
+  to project snippet triggers into `snippetCache`. Completion metadata for
+  `SnippetTrigger` tokens mirrors the YAML `what` field, while
+  `resolveTokenType()` relies on the shared `tokenMap` to decide if a token type
+  defined in YAML should surface as a completion candidate.
+
 ## Source Files (`src/`)
 
 - `src/editor.ts` — CLI entry point and multiline editor managing input, prompt

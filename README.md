@@ -8,6 +8,16 @@ No release yet.
 bun run start
 ```
 
+
+## Screen layout
+
+See [completion-expansion.md](./completion-expansion.md) for the full completion UX.
+
+The prompt stays where you launch lush.
+Completion arrays render directly under the prompt. The status bar remains
+pinned to the bottom of the terminal.
+
+
 ### Via Docker
 
 ```bash
