@@ -4,12 +4,13 @@ left:
   type: BinaryExpression
   operator: "+"
   left:
-    type: Identifier
-    name: a
+    type: Literal
+    value: 42
+    raw: "42"
   right:
     type: Identifier
-    name: b
+    name: a
 right:
-  type: Identifier
-  name: c
-
+  type: Literal
+  value: 666
+  raw: "666"

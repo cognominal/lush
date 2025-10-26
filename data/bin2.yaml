@@ -1,0 +1,15 @@
+type: TemplateLiteral
+quasis:
+  - type: TemplateElement
+    value:
+      raw: ""
+      cooked: ""
+    tail: false
+  - type: TemplateElement
+    value:
+      raw: "40"
+      cooked: "40"
+    tail: true
+expressions:
+  - type: Identifier
+    name: a
