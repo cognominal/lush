@@ -1,0 +1,15 @@
+type: BinaryExpression
+operator: "*"
+left:
+  type: BinaryExpression
+  operator: "+"
+  left:
+    type: Identifier
+    name: aaaaa
+  right:
+    type: Identifier
+    name: bbbbb
+right:
+  type: Identifier
+  name: ccccc
+

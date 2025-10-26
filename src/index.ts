@@ -42,6 +42,7 @@ export * from "./augmentedAcorn.ts";
 export * from "./multilineEnter.ts";
 export * from "./editor.ts";
 export * from "./commandSummary.ts";
+export * from "./expr/expr.ts";
 
 export * from "./builtins/directoryStack.ts";
 export * from "./builtins/helpFlags.ts";

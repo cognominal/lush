@@ -5,15 +5,6 @@ import { fileURLToPath } from "node:url";
 import type { Mode } from './index.ts'
 
 
-export enum OprType {
-  Binary,
-  UnaryPrefix,
-  UnaryPostfix,
-  Circumfix,
-  PostCircumfix,
-  Meta,
-}
-
 
 export interface TokenType {
   priority: number // type of higher priority are chosen before lower
@@ -33,16 +24,9 @@ export interface Hiliter extends TokenType {
   doesHilite?: boolean
 }
 
-interface Opr {
-  type: OprType,
-  s: string
-  s1?: string // for multitoken operators
-}
 
 export type TokenTypeName = string
 export type ModeName = string
-//  + for example can be both prefix or infix so the `[Opr]`
-export type OprMapType = Map<string, Opr | [Opr]>
 // 2 separate maptypes for the same keytype cuz hiliting is 
 // more a user thing and tokens a language thing
 export type TokenMapType = Map<TokenTypeName, TokenType>
@@ -51,7 +35,6 @@ export type HiliteMapType = Map<TokenTypeName, TokenType>
 export type HiliterType = (s: string) => string
 // export type hiliteMapType = Map<PreAstType, HiliterType>
 
-export const oprMap: OprMapType = new Map()
 export const tokenMap: TokenMapType = new Map()
 export const TokenMaps: TokenMapsType = new Map()
 
@@ -178,10 +161,6 @@ function applyHilites(
     token.hilite = hiliteFn;
     target.set(typeName, token);
   }
-}
-
-export function registerOpr(s: string, type: OprType, s1?: string) {
-  oprMap.set(s, s1 ? { type, s } : { type, s, s1 })
 }
 
 export function registerToken(t: TokenType): void {

@@ -1,0 +1,19 @@
+# for PostCircumfix and PostCircumfix we split 
+# the key on space 
+# "[ ]":
+#   - type: Circumfix
+# 
+#  gives the object
+# { type: "Circumfix", s: "[", s1: "]"}
+#
+# and appears in `OprMap` under the key `[` (first part of the split)
+
+"+":
+  - type: Infix
+  - type: Prefix
+"*":
+  - type: Prefix
+"[ ]":
+  - type: Circumfix
+"[ [":
+  - type: Circumfix

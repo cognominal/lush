@@ -153,7 +153,7 @@ Some items are moved to avoid cluttering the Readme.
 
 - classic shell features
   - [ ] Implicit cd
-  - [ ] (shortened) path in prompt
+  - [x] (shortened) path in prompt
   - [ ] Aliases ??
   - [ ] Globbing
   - [ ] Simple redirections
@@ -182,10 +182,6 @@ Some items are moved to avoid cluttering the Readme.
       sense without it. Make some of them readable for an newcomer. But a demo
       is even better
 
-## Working on
-
-Using Space token as separator instead of space to separate arguments UI. Better
-handling of token and subtokens
 
 ## Naked strings cool again, no poisoned Apple
 
@@ -242,7 +238,7 @@ The line editor must be rewritten in term of lines of sequence of token
 
 Embryo of a shell in node with a multi line edit and history. No pipe, no
 redirection. When the first word is a command in $PATH (shown in red), execute
-the line command. Otherwise echo the line.
+the line command. 
 
 See [prompt](./prompt.md) for forthcoming IA based updates. See
 [keybindings](./keybindings.md)
